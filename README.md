@@ -34,7 +34,7 @@ You give it a codebase. It discovers metrics to optimize, sets up the evaluation
 - **Benchmark discovery.** The `discover` skill explores the repo, figures out what to measure, and instruments the evaluation.
 
 
-Runs on Claude Code, Codex, Cursor, OpenClaw, Hermes, Opencode, or Pi. Experiments run locally or on remote sandboxes — Modal, E2B, Daytona, AWS, Azure, SSH.
+Runs on Claude Code, Codex, Cursor, Kimi, OpenClaw, Hermes, Opencode, or Pi. Experiments run locally or on remote sandboxes — Modal, E2B, Daytona, AWS, Azure, SSH.
 
 
 <p align="center">
@@ -77,7 +77,7 @@ npm install -g @anthropic-ai/claude-code     # or @openai/codex, openclaw, @eare
 # Cursor: install from cursor.com (IDE), or `curl https://cursor.com/install -fsS | bash` for the cursor-agent CLI
 
 # 3. Plugin + host hooks
-evo install <host>     # claude-code | codex | cursor | hermes | opencode | openclaw | pi
+evo install <host>     # claude-code | codex | cursor | hermes | kimi | opencode | openclaw | pi
 ```
 
 For remote backends, install with the matching provider extra: `uv tool install 'evo-hq-cli[modal]'` (or `[e2b]`, `[daytona]`, `[aws]`, `[azure]`, `[all]`).
