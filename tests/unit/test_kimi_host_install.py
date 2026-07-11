@@ -43,3 +43,22 @@ def test_install_missing_kimi_binary(fake_kimi_home, monkeypatch):
     from argparse import Namespace
     rc = kimi_mod.install(Namespace(from_path=None, version=None, force=False))
     assert rc == 2
+
+
+def test_install_copies_plugin(fake_kimi_home, tmp_path, monkeypatch):
+    # Use the real plugin root from this checkout
+    here = Path(__file__).resolve().parents[2] / "plugins" / "evo"
+    monkeypatch.setattr("shutil.which", lambda name: "/fake/kimi" if name == "kimi" else None)
+    from argparse import Namespace
+    rc = kimi_mod.install(Namespace(from_path=str(here.parent.parent), version=None, force=False))
+    assert rc == 0
+    assert (fake_kimi_home / "plugins" / "managed" / "evo" / ".kimi-plugin" / "plugin.json").exists()
+
+
+def test_doctor_after_install(fake_kimi_home, tmp_path, monkeypatch):
+    here = Path(__file__).resolve().parents[2] / "plugins" / "evo"
+    monkeypatch.setattr("shutil.which", lambda name: "/fake/kimi" if name == "kimi" else None)
+    from argparse import Namespace
+    kimi_mod.install(Namespace(from_path=str(here.parent.parent), version=None, force=False))
+    rc = kimi_mod.doctor(Namespace())
+    assert rc == 0
