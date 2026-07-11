@@ -1,0 +1,33 @@
+{
+  "name": "evo",
+  "version": "0.7.0",
+  "description": "Structured experiment-driven code optimization using tree search and parallel subagents",
+  "interface": {
+    "displayName": "evo",
+    "shortDescription": "Autoresearch orchestrator for codebases"
+  },
+  "skills": "./skills",
+  "commands": "./commands",
+  "hooks": [
+    {
+      "event": "SessionStart",
+      "command": "evo-drain --host kimi"
+    },
+    {
+      "event": "UserPromptSubmit",
+      "command": "evo-drain --host kimi"
+    },
+    {
+      "event": "PreToolUse",
+      "command": "evo-drain --host kimi"
+    },
+    {
+      "event": "Stop",
+      "command": "evo-drain --host kimi"
+    },
+    {
+      "event": "SubagentStop",
+      "command": "evo-drain --host kimi"
+    }
+  ]
+}
