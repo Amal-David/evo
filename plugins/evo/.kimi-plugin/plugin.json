@@ -29,5 +29,33 @@
       "event": "SubagentStop",
       "command": "evo-drain --host kimi"
     }
+  ],
+  "tools": [
+    {
+      "name": "evo_spawn_subagent",
+      "description": "Record the mapping between a Kimi Agent subagent and an evo experiment",
+      "command": ["python3", "./kimi_tools/spawn_subagent.py"],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "exp_id": {"type": "string"},
+          "agent_id": {"type": "string"},
+          "brief": {"type": "string"}
+        },
+        "required": ["exp_id", "agent_id"]
+      }
+    },
+    {
+      "name": "evo_wait_subagent",
+      "description": "Poll the evo experiment result for a given Kimi Agent id",
+      "command": ["python3", "./kimi_tools/wait_subagent.py"],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "agent_id": {"type": "string"}
+        },
+        "required": ["agent_id"]
+      }
+    }
   ]
 }

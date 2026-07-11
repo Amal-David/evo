@@ -24,3 +24,11 @@ def test_discover_command_file_exists():
 
 def test_optimize_command_file_exists():
     assert (COMMANDS_DIR / "optimize.md").exists()
+
+
+def test_manifest_declares_tools():
+    data = json.loads(MANIFEST.read_text())
+    tools = data.get("tools", [])
+    names = {t["name"] for t in tools}
+    assert "evo_spawn_subagent" in names
+    assert "evo_wait_subagent" in names
