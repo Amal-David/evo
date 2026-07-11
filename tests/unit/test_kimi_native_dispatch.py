@@ -28,3 +28,28 @@ def test_read_missing_mapping_returns_none():
     with tempfile.TemporaryDirectory() as tmp:
         run_dir = Path(tmp) / ".evo" / "run_test"
         assert read_agent_mapping(run_dir, "exp-0000") is None
+
+
+SPAWN_TOOL = REPO_ROOT / "plugins" / "evo" / "kimi_tools" / "spawn_subagent.py"
+
+
+def test_spawn_subagent_tool(tmp_path):
+    root = tmp_path / "repo"
+    (root / ".evo" / "run_test" / "experiments" / "exp-0001").mkdir(parents=True)
+    payload = json.dumps({
+        "exp_id": "exp-0001",
+        "agent_id": "kimi-agent-123",
+        "brief": "optimize parser",
+    })
+    env = {"EVO_RUN_DIR": str(root / ".evo" / "run_test")}
+    r = subprocess.run(
+        [sys.executable, str(SPAWN_TOOL)],
+        input=payload,
+        env={**dict(os.environ), **env},
+        capture_output=True,
+        text=True,
+        cwd=str(root),
+    )
+    assert r.returncode == 0
+    out = json.loads(r.stdout)
+    assert out["status"] == "ok"
