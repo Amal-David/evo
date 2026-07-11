@@ -11,7 +11,7 @@ sys.path.insert(0, str(REPO_ROOT / "plugins" / "evo" / "src"))
 
 from evo.inject.drain import main
 from evo.inject.paths import session_file
-from evo.inject.registry import register_session
+from evo.inject.registry import detect_session, register_session
 
 
 def _make_workspace(tmp: Path) -> Path:
@@ -80,3 +80,12 @@ class KimiDrainTest(unittest.TestCase):
             "tool_input": {"command": "echo hi"},
         })
         assert out == {}
+
+
+def test_detect_session_from_kimi_env(monkeypatch):
+    monkeypatch.setenv("KIMI_CODE_SESSION_ID", "kimi-sid-123")
+    monkeypatch.delenv("CODEX_THREAD_ID", raising=False)
+    monkeypatch.delenv("CLAUDE_CODE_SESSION_ID", raising=False)
+    monkeypatch.delenv("HERMES_SESSION_ID", raising=False)
+    monkeypatch.delenv("OPENCODE_SESSION_ID", raising=False)
+    assert detect_session() == ("kimi", "kimi-sid-123")

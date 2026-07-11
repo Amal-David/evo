@@ -40,6 +40,7 @@ HOST_SESSION_ENV_VARS = (
     ("codex", "CODEX_THREAD_ID"),
     ("claude-code", "CLAUDE_CODE_SESSION_ID"),
     ("hermes", "HERMES_SESSION_ID"),
+    ("kimi", "KIMI_CODE_SESSION_ID"),
     ("opencode", "OPENCODE_SESSION_ID"),
 )
 
