@@ -13,3 +13,14 @@ def test_manifest_exists_and_is_valid_json():
     assert "skills" in data
     assert "commands" in data
     assert "hooks" in data
+
+
+COMMANDS_DIR = REPO_ROOT / "plugins" / "evo" / "commands"
+
+
+def test_discover_command_file_exists():
+    assert (COMMANDS_DIR / "discover.md").exists()
+
+
+def test_optimize_command_file_exists():
+    assert (COMMANDS_DIR / "optimize.md").exists()
