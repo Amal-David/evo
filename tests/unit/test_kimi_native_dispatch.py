@@ -53,3 +53,32 @@ def test_spawn_subagent_tool(tmp_path):
     assert r.returncode == 0
     out = json.loads(r.stdout)
     assert out["status"] == "ok"
+
+
+WAIT_TOOL = REPO_ROOT / "plugins" / "evo" / "kimi_tools" / "wait_subagent.py"
+
+
+def test_wait_subagent_tool(tmp_path):
+    root = tmp_path / "repo"
+    run_dir = root / ".evo" / "run_test"
+    exp_dir = run_dir / "experiments" / "exp-0001"
+    exp_dir.mkdir(parents=True)
+    mapping = {"agent_id": "kimi-agent-123", "exp_id": "exp-0001", "brief": ""}
+    from evo.hosts.kimi_native import write_agent_mapping
+    write_agent_mapping(run_dir, "exp-0001", mapping)
+
+    payload = json.dumps({"agent_id": "kimi-agent-123"})
+    env = {"EVO_RUN_DIR": str(root / ".evo" / "run_test")}
+    r = subprocess.run(
+        [sys.executable, str(WAIT_TOOL)],
+        input=payload,
+        env={**dict(os.environ), **env},
+        capture_output=True,
+        text=True,
+        cwd=str(root),
+    )
+    assert r.returncode == 0
+    out = json.loads(r.stdout)
+    assert out["agent_id"] == "kimi-agent-123"
+    assert out["exp_id"] == "exp-0001"
+    assert out["status"] == "pending"
