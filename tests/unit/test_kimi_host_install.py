@@ -1,4 +1,6 @@
+import io
 import os
+import tarfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -62,3 +64,28 @@ def test_doctor_after_install(fake_kimi_home, tmp_path, monkeypatch):
     kimi_mod.install(Namespace(from_path=str(here.parent.parent), version=None, force=False))
     rc = kimi_mod.doctor(Namespace())
     assert rc == 0
+
+
+def _build_fake_tarball(version: str) -> bytes:
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+        root = f"evo-{version}"
+        manifest_content = b'{"name":"evo","version":"0.7.0"}'
+        info = tarfile.TarInfo(name=f"{root}/plugins/evo/.kimi-plugin/plugin.json")
+        info.size = len(manifest_content)
+        tar.addfile(info, io.BytesIO(manifest_content))
+    return buf.getvalue()
+
+
+def test_install_version_downloads_and_copies_plugin(fake_kimi_home, monkeypatch):
+    monkeypatch.setattr("shutil.which", lambda name: "/fake/kimi" if name == "kimi" else None)
+    tarball = _build_fake_tarball("0.7.0")
+
+    def fake_urlopen(url, **kwargs):
+        return io.BytesIO(tarball)
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    from argparse import Namespace
+    rc = kimi_mod.install(Namespace(from_path=None, version="0.7.0", force=False))
+    assert rc == 0
+    assert (fake_kimi_home / "plugins" / "managed" / "evo" / ".kimi-plugin" / "plugin.json").exists()

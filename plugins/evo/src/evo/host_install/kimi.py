@@ -7,12 +7,16 @@ managed plugin directory. Also wires hooks via the plugin manifest.
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import os
 import re
 import shutil
-import subprocess
 import sys
+import tarfile
+import tempfile
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 _RELEASE_VERSION_RE = re.compile(r"^\d+\.\d+\.\d+([.\-+a-zA-Z0-9]*)$")
@@ -43,9 +47,79 @@ def _plugin_root(from_path: str | None = None) -> Path:
     return here
 
 
-def _github_source(version: str) -> str:
+def _github_tarball_url(version: str) -> str:
     ref = f"v{version}" if _RELEASE_VERSION_RE.match(version) else version
-    return f"https://github.com/evo-hq/evo/tree/{ref}/plugins/evo"
+    if _RELEASE_VERSION_RE.match(version):
+        return f"https://github.com/evo-hq/evo/archive/refs/tags/{ref}.tar.gz"
+    return f"https://github.com/evo-hq/evo/archive/refs/heads/{ref}.tar.gz"
+
+
+def _find_extracted_plugin_root(extracted: Path) -> Path | None:
+    """Locate the evo plugin root inside an extracted GitHub archive."""
+    direct = extracted / "plugins" / "evo"
+    if (direct / ".kimi-plugin" / "plugin.json").exists():
+        return direct
+    for child in extracted.iterdir():
+        if child.is_dir():
+            candidate = child / "plugins" / "evo"
+            if (candidate / ".kimi-plugin" / "plugin.json").exists():
+                return candidate
+    return None
+
+
+def _copy_plugin_root(src: Path, dst: Path) -> None:
+    """Copy the plugin root to the Kimi managed plugin directory."""
+    if dst.exists():
+        print(f"removing previous install at {dst}")
+        shutil.rmtree(dst)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    print(f"copying {src} -> {dst}")
+    shutil.copytree(
+        src, dst,
+        ignore=shutil.ignore_patterns(
+            ".git", ".venv", "__pycache__", "build", "dist",
+            ".pytest_cache", "*.egg-info", "node_modules",
+        ),
+    )
+
+
+def _install_from_github(version: str) -> int:
+    """Download the evo plugin source from GitHub and install it for Kimi."""
+    url = _github_tarball_url(version)
+    print(f"downloading {url}")
+    try:
+        with urllib.request.urlopen(url, timeout=60) as response:
+            tarball_bytes = response.read()
+    except urllib.error.URLError as exc:
+        print(f"ERROR: could not download {url}: {exc}", file=sys.stderr)
+        return 2
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tarball_path = Path(tmp) / "evo.tar.gz"
+        tarball_path.write_bytes(tarball_bytes)
+        extract_dir = Path(tmp) / "extracted"
+        extract_dir.mkdir()
+        with tarfile.open(tarball_path, "r:gz") as tar:
+            # `filter` was added in Python 3.12; keep compatibility with 3.10/3.11.
+            extract_kwargs = {"filter": "data"} if sys.version_info >= (3, 12) else {}
+            tar.extractall(path=extract_dir, **extract_kwargs)
+
+        src = _find_extracted_plugin_root(extract_dir)
+        if src is None:
+            print(
+                "ERROR: downloaded archive does not contain a valid evo plugin root "
+                "(expected .../plugins/evo/.kimi-plugin/plugin.json)",
+                file=sys.stderr,
+            )
+            return 2
+
+        _copy_plugin_root(src, _kimi_plugin_dir())
+
+    print(
+        "\n✓ evo installed for kimi.\n"
+        "  Start a new Kimi session (or run /reload) to load the plugin."
+    )
+    return 0
 
 
 def install(args: argparse.Namespace) -> int:
@@ -59,43 +133,16 @@ def install(args: argparse.Namespace) -> int:
 
     version = getattr(args, "version", None)
     from_path = getattr(args, "from_path", None)
-    force = getattr(args, "force", False)
 
     if version:
-        # Let Kimi fetch the plugin from GitHub.
-        source = _github_source(version)
-        cmd = ["kimi", "plugin", "install", source]
-        if force:
-            cmd.append("--force")
-        print(f"$ {' '.join(cmd)}")
-        rc = subprocess.run(cmd).returncode
-        if rc != 0:
-            return rc
-        print(
-            "\n✓ evo installed for kimi.\n"
-            "  Start a new Kimi session (or run /reload) to load the plugin."
-        )
-        return 0
+        return _install_from_github(version)
 
     src = _plugin_root(from_path)
     if not src.exists():
         print(f"ERROR: evo plugin source not found at {src}", file=sys.stderr)
         return 2
 
-    dst = _kimi_plugin_dir()
-    # Local copy already overwrites any previous install, so force is honored.
-    if dst.exists():
-        print(f"removing previous install at {dst}")
-        shutil.rmtree(dst)
-    dst.parent.mkdir(parents=True, exist_ok=True)
-    print(f"copying {src} -> {dst}")
-    shutil.copytree(
-        src, dst,
-        ignore=shutil.ignore_patterns(
-            ".git", ".venv", "__pycache__", "build", "dist",
-            ".pytest_cache", "*.egg-info", "node_modules",
-        ),
-    )
+    _copy_plugin_root(src, _kimi_plugin_dir())
 
     print(
         "\n✓ evo installed for kimi.\n"
