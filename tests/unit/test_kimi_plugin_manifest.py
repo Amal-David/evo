@@ -32,3 +32,13 @@ def test_manifest_declares_tools():
     names = {t["name"] for t in tools}
     assert "evo_spawn_subagent" in names
     assert "evo_wait_subagent" in names
+
+
+OPTIMIZE_SKILL = REPO_ROOT / "plugins" / "evo" / "skills" / "optimize" / "SKILL.md"
+
+
+def test_optimize_skill_mentions_kimi_agent_tool():
+    text = OPTIMIZE_SKILL.read_text()
+    assert "Kimi" in text or "kimi" in text
+    assert "Agent" in text
+    assert "evo_spawn_subagent" in text
