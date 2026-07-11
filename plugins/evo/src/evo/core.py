@@ -31,6 +31,7 @@ SUPPORTED_HOSTS = frozenset({
     "claude-science",
     "codex",
     "cursor",
+    "kimi",
     "opencode",
     "openclaw",
     "hermes",
