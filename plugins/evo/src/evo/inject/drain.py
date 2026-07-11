@@ -155,6 +155,9 @@ def _resolve_root_from_payload(payload: dict) -> Path | None:
     roots = payload.get("workspace_roots")
     if isinstance(roots, list):
         candidates.extend(Path(r) for r in roots if isinstance(r, str) and r)
+    cwd = payload.get("cwd")
+    if isinstance(cwd, str) and cwd:
+        candidates.append(Path(cwd))
     candidates.append(Path.cwd())
     for start in candidates:
         cur = start
@@ -226,6 +229,8 @@ _OPTIMIZE_INVOCATION_PATTERNS: dict[str, list[_re.Pattern[str]]] = {
     ],
     # Cursor: `/cmd` only, no plugin namespacing. Bare /optimize covers it.
     "cursor": [_re.compile(r"(?:^|[^A-Za-z0-9_/:-])/optimize\b", _re.IGNORECASE)],
+    # Kimi: accepts both the canonical /evo:optimize and the bare /optimize.
+    "kimi": [_re.compile(r"(?:^|[^A-Za-z0-9_/:-])/(?:evo:)?optimize\b", _re.IGNORECASE)],
     # Hermes: bundled plugins can namespace their skills as `/plugin:skill`
     # (verified against hermes-agent/agent/skill_commands.py). evo's
     # current install lays bare skills into ~/.agents/skills/optimize/,
@@ -327,7 +332,7 @@ def _maybe_mark_engaged_from_shell(
     `auto_register_from_env` does for hosts that route engagement
     through the Python CLI path.
     """
-    if host != "cursor":
+    if host not in ("cursor", "kimi"):
         return
     if hook_event != "preToolUse":
         return
@@ -364,7 +369,7 @@ def _maybe_mark_autonomous_from_shell(
     commands and arm/disarm the matching hook session in-process. This is
     idempotent and covers hosts whose shell subprocess lacks the same session
     env var the hook payload carries."""
-    if host not in ("cursor", "codex", "claude-code"):
+    if host not in ("cursor", "codex", "claude-code", "kimi"):
         return
     if hook_event not in ("preToolUse", "PreToolUse"):
         return
@@ -585,6 +590,15 @@ def emit_for_host(host: str, hook_event: str | None, text: str, payload: dict | 
             out = {"permission": "allow", "updated_input": tool_input}
         else:
             out = {"additional_context": text}
+        sys.stdout.write(json.dumps(out, separators=(",", ":")))
+        return
+    if host == "kimi":
+        # Kimi hooks: exit-0 stdout is added to the agent's context. The
+        # structured envelope uses hookSpecificOutput with additionalContext.
+        # Policy blocks are emitted by drain_session before this function is
+        # called, using the same envelope with permissionDecision: deny.
+        evt = hook_event or "PreToolUse"
+        out = {"hookSpecificOutput": {"hookEventName": evt, "additionalContext": text}}
         sys.stdout.write(json.dumps(out, separators=(",", ":")))
         return
     # opencode and other in-process hosts: this entry point shouldn't
@@ -1458,46 +1472,34 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     # Mode 2: self-contained — resolve everything from args + stdin payload.
-    # Key on conversation_id: it's present in EVERY Cursor hook event, whereas
-    # session_id only appears in sessionStart. Keying on session_id would
-    # register the session under one id at sessionStart and then look up a
-    # different id at postToolUse (where session_id is absent), so mid-run
-    # directives would never be delivered.
     host = args.host or "cursor"
-    session = args.session or payload.get("conversation_id") or payload.get("session_id")
-    root = _resolve_root_from_payload(payload)
-    if not session or root is None or not inject_root(root).parent.exists():
-        _drain_debug(stage="resolve", host=host, hook_event=hook_event,
-                     payload_keys=sorted(payload.keys()), session=session,
-                     root=str(root) if root else None, decision="bail")
-        sys.stdout.write("{}")
-        return 0
-    tool_name = payload.get("tool_name")
-    tool_input = payload.get("tool_input") or {}
-    registered = session_file(root, session).exists()
-    has_marker = marker.exists(root, session)
-    # Cursor has no session-id env var that Python `auto_register_from_env`
-    # can detect, so the engagement signal can't be set via the CLI path
-    # used by other hosts. Detect it here instead: if the agent runs any
-    # `evo …` shell command, flip engagement on this session's record.
-    _maybe_mark_engaged_from_shell(root, session, host, hook_event, payload)
-    # Same rationale for autonomous: cursor arms via observing the command.
-    _maybe_mark_autonomous_from_shell(root, session, host, hook_event, payload)
-    gate = _self_contained_gate(root, session, host, hook_event, tool_name, tool_input)
-    # Detect /optimize invocation from the prompt payload for cursor's
-    # self-contained path. Must run AFTER the gate because the gate is
-    # what lazily registers the cursor session on first event (without
-    # registration, mark_optimize_mode finds no session file). The
-    # mark_optimize_mode helper is idempotent + refuses to flag subagents.
-    _maybe_mark_optimize_from_prompt(root, session, host, hook_event, payload)
-    _drain_debug(stage="gate", host=host, hook_event=hook_event, session=session,
-                 root=str(root), tool_name=tool_name,
-                 tool_class=_cursor_tool_class(tool_name) if hook_event == "preToolUse" else None,
-                 registered_before=registered, marker=has_marker, gate=gate)
-    if not gate:
-        sys.stdout.write("{}")
-        return 0
-    return drain_session(root, session, host=host, hook_event=hook_event, payload=payload)
+    if host in ("cursor", "kimi"):
+        session = args.session or payload.get("session_id") or payload.get("conversation_id")
+        root = _resolve_root_from_payload(payload)
+        if not session or root is None or not inject_root(root).parent.exists():
+            _drain_debug(stage="resolve", host=host, hook_event=hook_event,
+                         payload_keys=sorted(payload.keys()), session=session,
+                         root=str(root) if root else None, decision="bail")
+            sys.stdout.write("{}")
+            return 0
+        tool_name = payload.get("tool_name")
+        tool_input = payload.get("tool_input") or {}
+        registered = session_file(root, session).exists()
+        has_marker = marker.exists(root, session)
+        if host == "cursor":
+            _maybe_mark_engaged_from_shell(root, session, host, hook_event, payload)
+        _maybe_mark_autonomous_from_shell(root, session, host, hook_event, payload)
+        gate = _self_contained_gate(root, session, host, hook_event, tool_name, tool_input)
+        _maybe_mark_optimize_from_prompt(root, session, host, hook_event, payload)
+        _drain_debug(stage="gate", host=host, hook_event=hook_event, session=session,
+                     root=str(root), tool_name=tool_name,
+                     registered_before=registered, marker=has_marker, gate=gate)
+        if not gate:
+            sys.stdout.write("{}")
+            return 0
+        return drain_session(root, session, host=host, hook_event=hook_event, payload=payload)
+    sys.stdout.write("{}")
+    return 0
 
 
 if __name__ == "__main__":
