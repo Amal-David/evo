@@ -149,6 +149,7 @@ def _resolve_root_from_payload(payload: dict) -> Path | None:
     hook command runs from outside the project. Cursor's user-level
     `~/.cursor/hooks.json` runs from `~/.cursor/`, not the repo, so cwd is
     useless — the project path arrives in the payload's `workspace_roots`.
+    Kimi supplies the path in `cwd`, which is tried after `workspace_roots`.
     Falls back to walking up from cwd. Returns None if no `.evo/` is found.
     """
     candidates: list[Path] = []
@@ -326,7 +327,7 @@ def _maybe_mark_engaged_from_shell(
     hook_event: str | None,
     payload: dict | None,
 ) -> None:
-    """For self-contained hosts (currently Cursor): if the agent's about
+    """For self-contained hosts (Cursor, Kimi): if the agent's about
     to run an `evo` shell command, mark the session as evo-engaged and
     seed the workspace offset to the queue tail. Mirrors what
     `auto_register_from_env` does for hosts that route engagement
@@ -1404,7 +1405,7 @@ def _maybe_stop_nudge_text(
         return None
     if not sess.get("autonomous"):
         return None  # opt-in only; default /optimize stops naturally
-    if host not in ("claude-code", "codex", "cursor"):
+    if host not in ("claude-code", "codex", "cursor", "kimi"):
         return None  # no known stop-continuation envelope on this host
     # Workflow driver self-drives: the dynamic workflow runs the whole round loop in-process
     # (one long Workflow tool call) until its own stall limit. The always-fire stop nudge is the
@@ -1427,15 +1428,15 @@ def main(argv: list[str] | None = None) -> int:
     1. Front-ended by the `evo-hook-drain` Rust binary (claude-code/codex):
        it passes `--run-dir` and `--session` and has already done the marker
        gate, so this just drains.
-    2. Self-contained (cursor): the host's hooks.json calls `evo-drain
-       --host cursor` directly with no Rust binary in front. `--run-dir` and
+    2. Self-contained (cursor/kimi): the host's hooks.json calls `evo-drain
+       --host <host>` directly with no Rust binary in front. `--run-dir` and
        `--session` are omitted; they're resolved from the hook stdin payload
-       (`workspace_roots`, `conversation_id`) and the marker gate runs here.
+       (`workspace_roots`, `conversation_id`/`session_id`) and the marker gate runs here.
     """
     parser = argparse.ArgumentParser(prog="evo.drain")
     parser.add_argument("--run-dir", default=None, help="Path to .evo/run_*/ directory (omit for self-contained hosts)")
     parser.add_argument("--session", default=None, help="session_id to drain (omit to read from stdin payload)")
-    parser.add_argument("--host", default=None, help="host name (claude-code/codex/hermes/opencode/cursor); auto-detected if omitted")
+    parser.add_argument("--host", default=None, help="host name (claude-code/codex/hermes/opencode/cursor/kimi); auto-detected if omitted")
     args = parser.parse_args(argv)
 
     payload = _read_stdin_payload()
@@ -1474,7 +1475,10 @@ def main(argv: list[str] | None = None) -> int:
     # Mode 2: self-contained — resolve everything from args + stdin payload.
     host = args.host or "cursor"
     if host in ("cursor", "kimi"):
-        session = args.session or payload.get("session_id") or payload.get("conversation_id")
+        if host == "cursor":
+            session = args.session or payload.get("conversation_id") or payload.get("session_id")
+        else:
+            session = args.session or payload.get("session_id") or payload.get("conversation_id")
         root = _resolve_root_from_payload(payload)
         if not session or root is None or not inject_root(root).parent.exists():
             _drain_debug(stage="resolve", host=host, hook_event=hook_event,
@@ -1486,8 +1490,7 @@ def main(argv: list[str] | None = None) -> int:
         tool_input = payload.get("tool_input") or {}
         registered = session_file(root, session).exists()
         has_marker = marker.exists(root, session)
-        if host == "cursor":
-            _maybe_mark_engaged_from_shell(root, session, host, hook_event, payload)
+        _maybe_mark_engaged_from_shell(root, session, host, hook_event, payload)
         _maybe_mark_autonomous_from_shell(root, session, host, hook_event, payload)
         gate = _self_contained_gate(root, session, host, hook_event, tool_name, tool_input)
         _maybe_mark_optimize_from_prompt(root, session, host, hook_event, payload)
