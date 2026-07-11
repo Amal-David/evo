@@ -7,11 +7,15 @@ managed plugin directory. Also wires hooks via the plugin manifest.
 from __future__ import annotations
 
 import argparse
+import json
 import os
+import re
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+_RELEASE_VERSION_RE = re.compile(r"^\d+\.\d+\.\d+([.\-+a-zA-Z0-9]*)$")
 
 
 def _kimi_base() -> Path:
@@ -34,17 +38,13 @@ def _plugin_root(from_path: str | None = None) -> Path:
         return candidate
     # Running from an installed evo-hq-cli wheel: locate the plugin root
     # relative to this source file (plugins/evo/src/evo/host_install/).
-    here = Path(__file__).resolve().parent.parent.parent  # plugins/evo
+    # The plugin root is at plugins/evo, one level above the package root.
+    here = Path(__file__).resolve().parent.parent.parent.parent  # plugins/evo
     return here
 
 
-def _release_version_re():
-    import re
-    return re.compile(r"^\d+\.\d+\.\d+([.\-+a-zA-Z0-9]*)$")
-
-
 def _github_source(version: str) -> str:
-    ref = f"v{version}" if _release_version_re().match(version) else version
+    ref = f"v{version}" if _RELEASE_VERSION_RE.match(version) else version
     return f"https://github.com/evo-hq/evo/tree/{ref}/plugins/evo"
 
 
@@ -59,13 +59,16 @@ def install(args: argparse.Namespace) -> int:
 
     version = getattr(args, "version", None)
     from_path = getattr(args, "from_path", None)
+    force = getattr(args, "force", False)
 
     if version:
         # Let Kimi fetch the plugin from GitHub.
         source = _github_source(version)
         cmd = ["kimi", "plugin", "install", source]
+        if force:
+            cmd.append("--force")
         print(f"$ {' '.join(cmd)}")
-        rc = subprocess.call(cmd)
+        rc = subprocess.run(cmd).returncode
         if rc != 0:
             return rc
         print(
@@ -80,6 +83,7 @@ def install(args: argparse.Namespace) -> int:
         return 2
 
     dst = _kimi_plugin_dir()
+    # Local copy already overwrites any previous install, so force is honored.
     if dst.exists():
         print(f"removing previous install at {dst}")
         shutil.rmtree(dst)
@@ -128,7 +132,6 @@ def doctor(args: argparse.Namespace) -> int:
     print(f"✓ evo plugin manifest at {manifest}")
 
     # Basic manifest sanity
-    import json
     try:
         data = json.loads(manifest.read_text())
     except json.JSONDecodeError as exc:
