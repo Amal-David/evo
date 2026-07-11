@@ -40,3 +40,6 @@ node_modules/
 
 # Claude Code dynamic-workflow worktrees
 .claude/worktrees/
+
+# Worktrees
+.worktrees/
