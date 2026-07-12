@@ -433,7 +433,7 @@ def _self_contained_gate(
     #     IDE drops — silently losing the directive.
     sess = get_session(root, session_id)
     if sess and sess.get("optimize_mode") and not sess.get("exp_id"):
-        if hook_event in ("stop", "subagentStop"):
+        if hook_event in ("stop", "subagentStop", "Stop", "SubagentStop"):
             return True
         # Only treat a denied tool as drain-worthy when subagents_only is
         # armed — otherwise there's no policy deny to emit (default allows

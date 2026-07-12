@@ -11,7 +11,7 @@ sys.path.insert(0, str(REPO_ROOT / "plugins" / "evo" / "src"))
 
 from evo.inject.drain import main
 from evo.inject.paths import session_file
-from evo.inject.registry import detect_session, register_session
+from evo.inject.registry import detect_session, mark_autonomous, mark_optimize_mode, register_session
 
 
 def _make_workspace(tmp: Path) -> Path:
@@ -80,6 +80,19 @@ class KimiDrainTest(unittest.TestCase):
             "tool_input": {"command": "echo hi"},
         })
         assert out == {}
+
+    def test_stop_event_in_optimize_autonomous_emits_nudge(self):
+        sid = "kimi-test-sid"
+        register_session(self.root, sid, "kimi")
+        mark_optimize_mode(self.root, sid)
+        mark_autonomous(self.root, sid)
+        out = self._fire({
+            "session_id": sid,
+            "cwd": str(self.root),
+            "hook_event_name": "Stop",
+        })
+        assert "hookSpecificOutput" in out
+        assert "[EVO LOOP]" in out["hookSpecificOutput"]["additionalContext"]
 
 
 def test_detect_session_from_kimi_env(monkeypatch):
