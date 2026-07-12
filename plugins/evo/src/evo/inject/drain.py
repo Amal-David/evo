@@ -438,7 +438,7 @@ def _self_contained_gate(
         # Only treat a denied tool as drain-worthy when subagents_only is
         # armed — otherwise there's no policy deny to emit (default allows
         # orchestrator edits).
-        if (hook_event == "preToolUse" and sess.get("subagents_only")
+        if (hook_event in ("preToolUse", "PreToolUse") and sess.get("subagents_only")
                 and _is_denied_in_optimize_mode(tool_name, tool_input)):
             return True
 

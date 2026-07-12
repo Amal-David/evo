@@ -11,7 +11,7 @@ sys.path.insert(0, str(REPO_ROOT / "plugins" / "evo" / "src"))
 
 from evo.inject.drain import main
 from evo.inject.paths import session_file
-from evo.inject.registry import detect_session, mark_autonomous, mark_optimize_mode, register_session
+from evo.inject.registry import detect_session, mark_autonomous, mark_optimize_mode, mark_subagents_only, register_session
 
 
 def _make_workspace(tmp: Path) -> Path:
@@ -120,6 +120,21 @@ class KimiDrainTest(unittest.TestCase):
         rec = json.loads(session_file(self.root, sid).read_text())
         assert rec.get("has_evo_engaged") is True
         assert rec.get("engaged_at")
+
+    def test_pretooluse_edit_denied_when_subagents_only_for_kimi(self):
+        sid = "kimi-test-sid"
+        register_session(self.root, sid, "kimi")
+        mark_optimize_mode(self.root, sid)
+        mark_subagents_only(self.root, sid)
+        out = self._fire({
+            "session_id": sid,
+            "cwd": str(self.root),
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Edit",
+            "tool_input": {"path": "agent.py"},
+        })
+        assert out["hookSpecificOutput"]["permissionDecision"] == "deny"
+        assert "EVO POLICY" in out["hookSpecificOutput"]["permissionDecisionReason"]
 
 
 def test_detect_session_from_kimi_env(monkeypatch):
