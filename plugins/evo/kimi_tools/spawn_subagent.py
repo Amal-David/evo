@@ -8,8 +8,9 @@ import os
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO_ROOT / "plugins" / "evo" / "src"))
+from _bootstrap import add_evo_src_to_path
+
+add_evo_src_to_path()
 
 from evo.core import find_workspace_root, workspace_path
 from evo.hosts.kimi_native import write_agent_mapping
