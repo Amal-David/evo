@@ -11,7 +11,6 @@ Use this as the compact summary. This is setup guidance, not a runtime dependenc
 | `azure` | Azure Python SDK (`azure-identity`, `azure-mgmt-resource`, `azure-mgmt-network`, `azure-mgmt-compute`) | If missing, install `evo-hq-cli[azure]`; then use `az login` or Azure env creds, and provide subscription/resource-group config | `subscription_id`, `resource_group`, `location`, `vm_size`, `image`, `key`, `ssh_public_key`, `ssh_user`, `ssh_cidr`, `vnet_cidr`, `subnet_cidr`, `ssh_port`, `timeout_seconds`, `health_timeout_seconds`, `keep_warm` |
 | `ssh` | local `ssh` transport | `ssh user@host` must work first; then add `-i` / `-p` if needed | `host`, `key`, `port`, `tunnel_port`, `keep_warm`, `health_timeout_seconds` |
 | `manual` | existing remote workspace endpoint | no provisioning; only ask for URL/token if the user explicitly wants manual mode | `base_url`, `bearer_token`, `workspace_root`, `bundle_dir` |
-| `kimi` | Kimi Code CLI plugin + hooks | Install Kimi Code CLI, then `evo install kimi` | skills, commands, hooks, plugin tools (Phase 2) |
 
 Notes:
 - `evo` runtime uses the provider SDK or transport listed in the second column.
