@@ -442,13 +442,13 @@ def _self_contained_gate(
                 and _is_denied_in_optimize_mode(tool_name, tool_input)):
             return True
 
-    if hook_event == "preToolUse" and _cursor_tool_class(tool_name) != "shell":
-        # Only shell delivers mid-turn (updated_input echo into stdout, which
-        # the model reliably reads). For every other tool, deny+agent_message
-        # CONSUMES the directive without actually delivering it (verified: a
-        # Read deny clears the marker but the agent never gets the message).
-        # So defer (no consume) — the directive waits for the next shell call
-        # or the turn-end `stop`, both of which deliver reliably.
+    if hook_event in ("preToolUse", "PreToolUse") and _cursor_tool_class(tool_name) != "shell":
+        # Only shell delivers mid-turn. Cursor uses updated_input echo into
+        # stdout; Kimi uses hookSpecificOutput.additionalContext, which is
+        # unproven on non-shell events. For every other tool, emitting a
+        # directive CONSUMES it without guaranteed delivery, so defer (no
+        # consume) — the directive waits for the next shell call or the
+        # turn-end stop, both of which deliver reliably.
         return False
     if fresh:
         return False  # just registered on this event; nothing marked yet

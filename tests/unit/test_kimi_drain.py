@@ -94,6 +94,18 @@ class KimiDrainTest(unittest.TestCase):
         assert "hookSpecificOutput" in out
         assert "[EVO LOOP]" in out["hookSpecificOutput"]["additionalContext"]
 
+    def test_pretooluse_non_shell_defers_for_kimi(self):
+        sid = "kimi-test-sid"
+        register_session(self.root, sid, "kimi")
+        out = self._fire({
+            "session_id": sid,
+            "cwd": str(self.root),
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Edit",
+            "tool_input": {"path": "agent.py"},
+        })
+        assert out == {}
+
 
 def test_detect_session_from_kimi_env(monkeypatch):
     monkeypatch.setenv("KIMI_CODE_SESSION_ID", "kimi-sid-123")
