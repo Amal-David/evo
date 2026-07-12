@@ -335,7 +335,7 @@ def _maybe_mark_engaged_from_shell(
     """
     if host not in ("cursor", "kimi"):
         return
-    if hook_event != "preToolUse":
+    if hook_event not in ("preToolUse", "PreToolUse"):
         return
     if _cursor_tool_class((payload or {}).get("tool_name")) != "shell":
         return

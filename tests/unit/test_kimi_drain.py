@@ -106,6 +106,21 @@ class KimiDrainTest(unittest.TestCase):
         })
         assert out == {}
 
+    def test_pretooluse_shell_evo_marks_engaged_for_kimi(self):
+        sid = "kimi-test-sid"
+        register_session(self.root, sid, "kimi")
+        out = self._fire({
+            "session_id": sid,
+            "cwd": str(self.root),
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Shell",
+            "tool_input": {"command": "evo direct hello"},
+        })
+        assert out == {}
+        rec = json.loads(session_file(self.root, sid).read_text())
+        assert rec.get("has_evo_engaged") is True
+        assert rec.get("engaged_at")
+
 
 def test_detect_session_from_kimi_env(monkeypatch):
     monkeypatch.setenv("KIMI_CODE_SESSION_ID", "kimi-sid-123")
