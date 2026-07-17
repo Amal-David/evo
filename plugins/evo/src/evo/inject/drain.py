@@ -729,16 +729,22 @@ def drain_session(root: Path, session_id: str, host: str | None = None, hook_eve
         # state so the next non-violating tool call can drain it.
         return 0
 
-    # Cursor non-shell preToolUse: the IDE drops `additional_context`,
-    # so we'd consume queued directives without delivering them. This
-    # path is only reachable in optimize_mode (the gate normally defers
-    # non-shell preToolUse). The policy block didn't fire (even-numbered
-    # violation under the alternating cadence), so we let the tool
-    # through but must NOT consume directives.
-    if (
-        host == "cursor"
-        and hook_event in ("preToolUse", "PreToolUse")
-        and _cursor_tool_class(payload.get("tool_name") if payload else None) != "shell"
+    # preToolUse with no mid-turn delivery channel: let the tool through and
+    # do NOT consume directives. Reachable only in optimize_mode after the
+    # policy block didn't fire (even-numbered violation under the alternating
+    # cadence). Emitting here would both refuse the tool the cadence meant to
+    # allow and consume the directive on a pre-tool event.
+    #   - cursor: the IDE drops `additional_context` on non-shell tools (shell
+    #     delivers via updated_input, so it's allowed to drain).
+    #   - kimi: the only channel is a Stop-hook block, which would deny the
+    #     tool; every preToolUse defers to the turn-end Stop.
+    _pre = hook_event in ("preToolUse", "PreToolUse")
+    if _pre and (
+        host == "kimi"
+        or (
+            host == "cursor"
+            and _cursor_tool_class(payload.get("tool_name") if payload else None) != "shell"
+        )
     ):
         sys.stdout.write("{}")
         return 0

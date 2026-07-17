@@ -197,6 +197,33 @@ class KimiDrainTest(unittest.TestCase):
         assert out["hookSpecificOutput"]["permissionDecision"] == "deny"
         assert "EVO POLICY" in out["hookSpecificOutput"]["permissionDecisionReason"]
 
+    def test_even_violation_does_not_deny_or_consume_directive_on_kimi(self):
+        """The policy-block cadence denies odd violations and lets even ones
+        through. On the even pass a Kimi preToolUse must NOT deny the tool the
+        cadence intends to allow, and must NOT consume a pending directive on a
+        pre-tool event — it waits for the turn-end Stop."""
+        from evo.inject import marker
+        sid = "kimi-test-sid"
+        register_session(self.root, sid, "kimi")
+        mark_optimize_mode(self.root, sid)
+        mark_subagents_only(self.root, sid)
+        self._queue_directive(sid)
+        denied = {
+            "session_id": sid,
+            "cwd": str(self.root),
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Edit",
+            "tool_input": {"path": "agent.py"},
+        }
+        # 1st violation (odd): hard deny, directive preserved.
+        first = self._fire(denied)
+        assert first["hookSpecificOutput"]["permissionDecision"] == "deny"
+        assert marker.exists(self.root, sid)
+        # 2nd violation (even): tool allowed through, directive still pending.
+        second = self._fire(denied)
+        assert second == {}, "even violation must not emit a deny envelope"
+        assert marker.exists(self.root, sid), "directive consumed on a pre-tool event"
+
 
 def test_kimi_is_not_env_detectable(monkeypatch):
     """Kimi exports no session env var — it stamps `session_id` onto the hook
