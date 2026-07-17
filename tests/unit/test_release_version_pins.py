@@ -40,10 +40,13 @@ def test_host_manifests_are_discovered():
 
 
 def test_every_host_manifest_is_version_checked():
+    # SOURCES holds forward-slash repo-relative literals; normalize the
+    # manifest paths the same way so the comparison holds on Windows, where
+    # str(Path) uses backslashes.
+    sources = _check_versions_sources()
     missing = [
-        str(m.relative_to(REPO_ROOT))
-        for m in _host_manifests()
-        if str(m.relative_to(REPO_ROOT)) not in _check_versions_sources()
+        rel for rel in (m.relative_to(REPO_ROOT).as_posix() for m in _host_manifests())
+        if rel not in sources
     ]
     assert not missing, (
         f"{missing} not listed in scripts/check_versions.py SOURCES — a release "
