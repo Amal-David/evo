@@ -3,4 +3,8 @@ name: optimize
 description: Run the evo autoresearch optimization loop.
 ---
 
-Run `evo optimize` in the current project. This starts the structured experiment loop. You may pass parameters like `subagents=N` or `autonomous` as arguments. Do not edit files or run experiments manually while the loop is active unless the user explicitly asks for direct execution.
+Load and follow the evo `optimize` skill (named `optimize` under the evo plugin in your skill registry — use your skill loader, not a filesystem path). It drives the structured experiment loop: the orchestrator writes briefs and spawns subagents that own the candidate edits and runs.
+
+Any arguments below are parameters for that skill (e.g. `subagents=N`, `budget=N`, `autonomous`).
+
+$ARGUMENTS

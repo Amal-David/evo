@@ -3,4 +3,8 @@ name: discover
 description: Discover what to optimize and initialize an evo workspace.
 ---
 
-Run `evo discover` in the current project. If the user provides an optimization target, pass it as an argument. After this command completes, use `evo status` to confirm the workspace is initialized, then run `/evo:optimize` to start the loop.
+Load and follow the evo `discover` skill (named `discover` under the evo plugin in your skill registry — use your skill loader, not a filesystem path). It explores the repository, proposes optimization dimensions, builds the benchmark inside a baseline worktree, and runs the first experiment.
+
+If arguments are provided below, treat them as the optimization target or focus for discovery.
+
+$ARGUMENTS

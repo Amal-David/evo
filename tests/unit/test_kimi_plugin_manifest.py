@@ -87,6 +87,33 @@ def test_optimize_command_file_exists():
     assert (COMMANDS_DIR / "optimize.md").exists()
 
 
+# `evo discover` / `evo optimize` are NOT CLI subcommands — that functionality
+# lives in the skills. A slash command must load the skill, not tell the model
+# to run a shell command the CLI rejects.
+_EVO_CLI_SUBCOMMANDS = {
+    "init", "new", "run", "status", "report", "direct", "ack", "install",
+}
+
+
+def test_slash_commands_load_the_skill_not_a_fake_cli_command():
+    for name in ("discover", "optimize"):
+        body = (COMMANDS_DIR / f"{name}.md").read_text()
+        assert f"evo `{name}` skill" in body, (
+            f"{name}.md must load the evo {name} skill"
+        )
+        assert f"Run `evo {name}`" not in body, (
+            f"{name}.md tells the model to run a non-existent `evo {name}` CLI command"
+        )
+        assert name not in _EVO_CLI_SUBCOMMANDS, (
+            f"guard assumption broke: `evo {name}` is now a real subcommand"
+        )
+
+
+def test_slash_commands_pass_through_typed_arguments():
+    for name in ("discover", "optimize"):
+        assert "$ARGUMENTS" in (COMMANDS_DIR / f"{name}.md").read_text()
+
+
 def test_optimize_skill_documents_kimi_spawn_shape():
     text = OPTIMIZE_SKILL.read_text()
     assert "**kimi**" in text
