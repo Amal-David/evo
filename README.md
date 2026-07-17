@@ -75,6 +75,7 @@ uv tool install evo-hq-cli
 # 2. Host CLI (if you don't already have it)
 npm install -g @anthropic-ai/claude-code     # or @openai/codex, openclaw, @earendil-works/pi-coding-agent
 # Cursor: install from cursor.com (IDE), or `curl https://cursor.com/install -fsS | bash` for the cursor-agent CLI
+# Kimi: `curl -fsSL https://code.kimi.com/install.sh | bash`, or `npm install -g @moonshot-ai/kimi-code`
 
 # 3. Plugin + host hooks
 evo install <host>     # claude-code | codex | cursor | hermes | kimi | opencode | openclaw | pi

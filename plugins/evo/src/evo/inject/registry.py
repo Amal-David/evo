@@ -36,11 +36,13 @@ STALE_AFTER_SECONDS = 30 * 24 * 60 * 60
 # Codex exposes the session as CODEX_THREAD_ID (verified empirically on
 # codex-cli 0.130 — it shows "session id: <uuid>" at startup and exports
 # the same uuid via CODEX_THREAD_ID, not CODEX_SESSION_ID).
+# Cursor and Kimi are absent by design: neither exports a session env var,
+# so both resolve the session from the hook stdin payload instead (Kimi
+# sends `session_id` on every event; see drain's self-contained path).
 HOST_SESSION_ENV_VARS = (
     ("codex", "CODEX_THREAD_ID"),
     ("claude-code", "CLAUDE_CODE_SESSION_ID"),
     ("hermes", "HERMES_SESSION_ID"),
-    ("kimi", "KIMI_CODE_SESSION_ID"),
     ("opencode", "OPENCODE_SESSION_ID"),
 )
 

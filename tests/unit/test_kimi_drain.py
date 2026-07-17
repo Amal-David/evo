@@ -11,7 +11,14 @@ sys.path.insert(0, str(REPO_ROOT / "plugins" / "evo" / "src"))
 
 from evo.inject.drain import main
 from evo.inject.paths import session_file
-from evo.inject.registry import detect_session, mark_autonomous, mark_optimize_mode, mark_subagents_only, register_session
+from evo.inject.registry import (
+    HOST_SESSION_ENV_VARS,
+    detect_session,
+    mark_autonomous,
+    mark_optimize_mode,
+    mark_subagents_only,
+    register_session,
+)
 
 
 def _make_workspace(tmp: Path) -> Path:
@@ -91,8 +98,9 @@ class KimiDrainTest(unittest.TestCase):
             "cwd": str(self.root),
             "hook_event_name": "Stop",
         })
-        assert "hookSpecificOutput" in out
-        assert "[EVO LOOP]" in out["hookSpecificOutput"]["additionalContext"]
+        # Kimi delivers `message ?? hookSpecificOutput.message` to the agent
+        # and has no additionalContext field, so anything else is dropped.
+        assert "[EVO LOOP]" in out["message"]
 
     def test_pretooluse_non_shell_defers_for_kimi(self):
         sid = "kimi-test-sid"
@@ -137,10 +145,12 @@ class KimiDrainTest(unittest.TestCase):
         assert "EVO POLICY" in out["hookSpecificOutput"]["permissionDecisionReason"]
 
 
-def test_detect_session_from_kimi_env(monkeypatch):
-    monkeypatch.setenv("KIMI_CODE_SESSION_ID", "kimi-sid-123")
-    monkeypatch.delenv("CODEX_THREAD_ID", raising=False)
-    monkeypatch.delenv("CLAUDE_CODE_SESSION_ID", raising=False)
-    monkeypatch.delenv("HERMES_SESSION_ID", raising=False)
-    monkeypatch.delenv("OPENCODE_SESSION_ID", raising=False)
-    assert detect_session() == ("kimi", "kimi-sid-123")
+def test_kimi_is_not_env_detectable(monkeypatch):
+    """Kimi exports no session env var — it stamps `session_id` onto the hook
+    payload instead. Registering a env var here would make `detect_session`
+    claim a host it can never actually resolve."""
+    for var in ("CODEX_THREAD_ID", "CLAUDE_CODE_SESSION_ID",
+                "HERMES_SESSION_ID", "OPENCODE_SESSION_ID"):
+        monkeypatch.delenv(var, raising=False)
+    assert detect_session() is None
+    assert not any(host == "kimi" for host, _ in HOST_SESSION_ENV_VARS)

@@ -84,19 +84,8 @@ infra-setup, and the complete references catalogue) lives in `evo:discover`'s
 
 This skill runs on any host that implements the Agent Skills spec. When the body uses generic phrases, apply the host's best-fit equivalent:
 
-- **"spawn N subagents in parallel"** -- use your host's parallel-subagent tool. See Step 5 below for the per-host spawn commands. Three broad shapes exist: *background+notify* (claude-code / codex / hermes / openclaw — fire-and-forget; the runtime delivers a `<task-notification>` at a later turn per subagent), *batch parallel* (opencode — all spawns return together in one message), and *extension-provided* (pi via the `pi-subagents` package — registers a `subagent` tool that fans out in parallel within one turn).
+- **"spawn N subagents in parallel"** -- use your host's parallel-subagent tool. See Step 5 below for the per-host spawn commands. Three broad shapes exist: *background+notify* (claude-code / codex / hermes / openclaw / kimi — fire-and-forget; the runtime delivers a `<task-notification>` at a later turn per subagent), *batch parallel* (opencode — all spawns return together in one message), and *extension-provided* (pi via the `pi-subagents` package — registers a `subagent` tool that fans out in parallel within one turn).
 - **Slash commands shown in user-facing copy** (e.g. `/evo:optimize`) -- translate to your host's mention syntax when speaking to the user (e.g. `$evo optimize` on Codex -- plugin namespace then skill name, separated by a space).
-
-### Kimi Code CLI
-
-On Kimi, use the built-in `Agent` tool to spawn optimization subagents:
-
-- `subagent_type`: `coder`
-- `run_in_background`: `true`
-- `description`: `evo-exp-<exp_id>`
-- `prompt`: the full brief, ending with the instruction to load the `evo:subagent` skill
-
-After each `Agent` call returns an `agent_id`, immediately call the `evo_spawn_subagent` plugin tool with `exp_id` and `agent_id` so evo can correlate the Kimi agent instance with the experiment. To wait for completion, call `evo_wait_subagent` with the `agent_id`, or poll `evo status <exp_id>` directly.
 
 ## Mid-run user directives (`evo direct`)
 
@@ -365,6 +354,7 @@ Per host, the spawn shape matters because evo's loop depends on *completion noti
 - **opencode** — *batch-parallel only* (no background notifications). Fire N `task` calls in ONE assistant message; all `tool_result`s return together when the slowest finishes. Plan all parallel work (including non-task tools) in that single message — opencode cannot interleave reasoning across turns while subagents run.
 - **pi** — *batch-parallel via `subagent` tool*. Fire N calls in one assistant message; all results return together. If the tool's missing, run `evo new` → `evo run` sequentially and tell the user to `pi install npm:pi-subagents`.
 - **cursor** — *batch-parallel via Cursor native Subagents*; fan all briefs out in a single batch. Fallback if native subagents are unavailable: one `cursor-agent -p "<brief>" --force` per brief (background+notify).
+- **kimi** — fire one `Agent(run_in_background=true)` call per brief (`subagent_type` defaults to `coder`). Each returns immediately and the runtime delivers a completion notification at a later turn. Track each experiment with `evo status <exp_id>`; don't block on the agent inline.
 
 Respect the host's concurrency cap; batch if N exceeds it.
 
