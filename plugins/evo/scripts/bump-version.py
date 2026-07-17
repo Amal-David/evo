@@ -8,6 +8,7 @@ doesn't leave one of them stale. Locations covered:
   src/evo/__init__.py        __version__
   .claude-plugin/plugin.json "version"
   .codex-plugin/plugin.json  "version"
+  .kimi-plugin/plugin.json   "version"
   npm/package.json           "version"
   skills/*/SKILL.md          evo_version frontmatter
   skills/discover/SKILL.md   step-0 user-facing literals
@@ -200,6 +201,7 @@ def _verify_no_leftover(old: str, new: str) -> list[Path]:
         PLUGIN_ROOT / "src" / "evo" / "__init__.py",
         PLUGIN_ROOT / ".claude-plugin" / "plugin.json",
         PLUGIN_ROOT / ".codex-plugin" / "plugin.json",
+        PLUGIN_ROOT / ".kimi-plugin" / "plugin.json",
         PLUGIN_ROOT / "npm" / "package.json",
         SDK_PYTHON_ROOT / "pyproject.toml",
         SDK_PYTHON_ROOT / "src" / "evo_agent" / "__init__.py",
@@ -245,6 +247,8 @@ def main() -> int:
     print(f"  ✓ plugins/evo/.claude-plugin/plugin.json")
     _bump_json_version(PLUGIN_ROOT / ".codex-plugin" / "plugin.json", new)
     print(f"  ✓ plugins/evo/.codex-plugin/plugin.json")
+    _bump_json_version(PLUGIN_ROOT / ".kimi-plugin" / "plugin.json", new)
+    print(f"  ✓ plugins/evo/.kimi-plugin/plugin.json")
     _bump_json_version(PLUGIN_ROOT / "npm" / "package.json", new)
     print(f"  ✓ plugins/evo/npm/package.json (@evo-hq/pi-evo)")
 
