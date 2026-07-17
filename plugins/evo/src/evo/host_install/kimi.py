@@ -79,11 +79,21 @@ def _plugin_root(from_path: str | None = None) -> Path:
         if (p / ".kimi-plugin" / "plugin.json").exists() or (p / "kimi.plugin.json").exists():
             return p
         return candidate
-    # Running from an installed evo-hq-cli wheel: locate the plugin root
-    # relative to this source file (plugins/evo/src/evo/host_install/).
-    # The plugin root is at plugins/evo, one level above the package root.
+    # Source-checkout location: plugins/evo, four levels above this file
+    # (plugins/evo/src/evo/host_install/kimi.py). Only valid when evo runs
+    # from a working-tree/editable install — a wheel puts this file under
+    # site-packages, where `parents[3]` is the site-packages parent, not a
+    # plugin root. install() guards this with _is_valid_plugin_root and
+    # falls back to the GitHub tarball for wheel installs.
     here = Path(__file__).resolve().parent.parent.parent.parent  # plugins/evo
     return here
+
+
+def _is_valid_plugin_root(path: Path) -> bool:
+    """A directory is a usable plugin root only if it actually carries the
+    Kimi manifest. Guards against `_plugin_root` resolving to an unrelated
+    directory that merely exists (the site-packages parent on a wheel)."""
+    return (path / ".kimi-plugin" / "plugin.json").exists()
 
 
 def _github_tarball_url(version: str) -> str:
@@ -250,12 +260,28 @@ def install(args: argparse.Namespace) -> int:
     if version:
         return _install_from_github(version)
 
-    src = _plugin_root(from_path)
-    if not src.exists():
-        print(f"ERROR: evo plugin source not found at {src}", file=sys.stderr)
-        return 2
+    if from_path:
+        src = _plugin_root(from_path)
+        if not _is_valid_plugin_root(src):
+            print(
+                f"ERROR: no evo plugin root (.kimi-plugin/plugin.json) at {src}",
+                file=sys.stderr,
+            )
+            return 2
+        return _install_plugin(src)
 
-    return _install_plugin(src)
+    # Bare `evo install kimi`. The plugin files sit next to the CLI only in a
+    # source/editable checkout; the published wheel ships none of them, and
+    # `_plugin_root(None)` would resolve to the tool's site-packages parent.
+    # Use the local tree when it's genuinely a checkout, otherwise fetch the
+    # GitHub tarball at the running version — the same bare-case behaviour as
+    # the codex, cursor, and hermes adapters.
+    src = _plugin_root(None)
+    if _is_valid_plugin_root(src):
+        return _install_plugin(src)
+
+    from evo import __version__
+    return _install_from_github(__version__)
 
 
 def uninstall(args: argparse.Namespace) -> int:

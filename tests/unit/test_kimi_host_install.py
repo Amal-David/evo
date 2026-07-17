@@ -172,3 +172,40 @@ def test_install_version_downloads_and_registers_plugin(fake_kimi_home, kimi_on_
     assert rc == 0
     assert (fake_kimi_home / "plugins" / "managed" / "evo" / ".kimi-plugin" / "plugin.json").exists()
     assert any(r["id"] == "evo" for r in _installed_records(fake_kimi_home))
+
+
+def test_bare_install_on_wheel_falls_back_to_github(fake_kimi_home, kimi_on_path, monkeypatch):
+    """Regression: on a `uv tool install evo-hq-cli` wheel the plugin files
+    do not sit next to the CLI, so a bare install must fetch the GitHub
+    tarball at the running version rather than copy the site-packages parent."""
+    wheel_like = fake_kimi_home / "not-a-plugin-root"
+    wheel_like.mkdir()
+    monkeypatch.setattr(kimi_mod, "_plugin_root", lambda from_path=None: wheel_like)
+    calls = []
+    monkeypatch.setattr(kimi_mod, "_install_from_github", lambda v: calls.append(v) or 0)
+
+    import evo
+    rc = kimi_mod.install(Namespace(from_path=None, version=None, force=False))
+    assert rc == 0
+    assert calls == [evo.__version__], "bare wheel install should fetch the running version"
+
+
+def test_bare_install_on_checkout_uses_local_tree(fake_kimi_home, kimi_on_path, monkeypatch):
+    """From a real checkout the bare install copies the local tree and never
+    hits the network."""
+    monkeypatch.setattr(
+        kimi_mod, "_install_from_github",
+        lambda v: (_ for _ in ()).throw(AssertionError("must not download from a checkout")),
+    )
+    rc = kimi_mod.install(Namespace(from_path=None, version=None, force=False))
+    assert rc == 0
+    assert (fake_kimi_home / "plugins" / "managed" / "evo" / ".kimi-plugin" / "plugin.json").exists()
+
+
+def test_install_from_invalid_path_is_rejected(fake_kimi_home, kimi_on_path, tmp_path):
+    """A --from-path with no plugin root fails loudly instead of copying junk."""
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    rc = kimi_mod.install(Namespace(from_path=str(empty), version=None, force=False))
+    assert rc == 2
+    assert not (fake_kimi_home / "plugins" / "managed" / "evo").exists()
