@@ -425,6 +425,14 @@ def _self_contained_gate(
     if hook_event not in _DELIVER_EVENTS:
         return False  # register-only (sessionStart, beforeSubmitPrompt, …)
 
+    # Kimi delivers only by blocking a hook, and only Stop's block reaches the
+    # model (it's appended to the context, and the loop continues).
+    # SubagentStop is fire-and-forget — kimi discards its result entirely — so
+    # draining there would consume a directive that can never arrive. The
+    # PreToolUse policy deny below is exempt: it intends to deny.
+    if host == "kimi" and hook_event in ("subagentStop", "SubagentStop"):
+        return False
+
     # Steering bypass for orchestrator-class sessions in optimize_mode:
     #   - stop/subagentStop: always-fire stop nudge needs drain to run.
     #   - preToolUse: only when the tool is on the deny list. Letting
@@ -442,10 +450,14 @@ def _self_contained_gate(
                 and _is_denied_in_optimize_mode(tool_name, tool_input)):
             return True
 
-    if hook_event in ("preToolUse", "PreToolUse") and _cursor_tool_class(tool_name) != "shell":
-        # Only shell delivers mid-turn. Cursor uses updated_input echo into
-        # stdout; Kimi uses hookSpecificOutput.additionalContext, which is
-        # unproven on non-shell events. For every other tool, emitting a
+    if hook_event in ("preToolUse", "PreToolUse") and (
+        host == "kimi" or _cursor_tool_class(tool_name) != "shell"
+    ):
+        # Only shell delivers mid-turn, and only on Cursor, which echoes the
+        # directive into the command's stdout via updated_input. Kimi has no
+        # equivalent — its only channel is a block, which here would deny the
+        # tool the agent asked for — so Kimi defers EVERY preToolUse and lets
+        # the turn-end Stop deliver. For every other tool, emitting a
         # directive CONSUMES it without guaranteed delivery, so defer (no
         # consume) — the directive waits for the next shell call or the
         # turn-end stop, both of which deliver reliably.
@@ -594,13 +606,23 @@ def emit_for_host(host: str, hook_event: str | None, text: str, payload: dict | 
         sys.stdout.write(json.dumps(out, separators=(",", ":")))
         return
     if host == "kimi":
-        # Kimi reads `message ?? hookSpecificOutput.message` off the hook's
-        # stdout JSON and delivers that to the agent. It has no
-        # `additionalContext` field: its HookSpecificOutputSchema is a loose
-        # object over {message, permissionDecision, permissionDecisionReason},
-        # so a claude-code-style additionalContext parses fine and is then
-        # silently dropped. Verified against kimi-code 0.26.0.
-        sys.stdout.write(json.dumps({"message": text}, separators=(",", ":")))
+        # Kimi has no passive context-injection channel. The ONLY way to get
+        # text in front of the model is to BLOCK the hook: on Stop it runs
+        # `triggerBlock`, appends the block's permissionDecisionReason to the
+        # context as a user message, and returns continue:true — which
+        # delivers the directive and keeps the loop alive in one move.
+        # Anything that isn't a block collapses to {action:"allow"} and its
+        # `message` is dropped on the floor, so a claude-code-style
+        # additionalContext (or a bare `message`) parses fine and reaches
+        # nobody. Verified against kimi-code 0.26.0.
+        out = {
+            "hookSpecificOutput": {
+                "hookEventName": hook_event or "Stop",
+                "permissionDecision": "deny",
+                "permissionDecisionReason": text,
+            }
+        }
+        sys.stdout.write(json.dumps(out, separators=(",", ":")))
         return
     # opencode and other in-process hosts: this entry point shouldn't
     # normally be invoked there. Fall through to a generic envelope.
@@ -1392,8 +1414,9 @@ def _maybe_stop_nudge_text(
         would double-drive (re-prompt after the workflow already finished).
       - host must have a working stop-continuation envelope:
         claude-code/codex use `{decision: "block", reason: …}`; cursor
-        uses `{followup_message: …}` (auto-submitted at turn end).
-        emit_for_host dispatches the right shape per host.
+        uses `{followup_message: …}` (auto-submitted at turn end); kimi
+        uses a Stop-hook block, whose reason it appends to the context
+        before continuing. emit_for_host dispatches the right shape per host.
     """
     if hook_event not in _STOP_EVENTS:
         return None

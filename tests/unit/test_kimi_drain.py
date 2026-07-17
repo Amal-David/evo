@@ -98,9 +98,12 @@ class KimiDrainTest(unittest.TestCase):
             "cwd": str(self.root),
             "hook_event_name": "Stop",
         })
-        # Kimi delivers `message ?? hookSpecificOutput.message` to the agent
-        # and has no additionalContext field, so anything else is dropped.
-        assert "[EVO LOOP]" in out["message"]
+        # Kimi only surfaces a hook's text when the hook BLOCKS: on Stop it
+        # appends permissionDecisionReason to the context and continues. A
+        # non-block result is reduced to {action:"allow"} and its message is
+        # discarded, so the nudge must ride the deny envelope.
+        assert out["hookSpecificOutput"]["permissionDecision"] == "deny"
+        assert "[EVO LOOP]" in out["hookSpecificOutput"]["permissionDecisionReason"]
 
     def test_pretooluse_non_shell_defers_for_kimi(self):
         sid = "kimi-test-sid"
@@ -128,6 +131,56 @@ class KimiDrainTest(unittest.TestCase):
         rec = json.loads(session_file(self.root, sid).read_text())
         assert rec.get("has_evo_engaged") is True
         assert rec.get("engaged_at")
+
+    def _queue_directive(self, sid: str) -> None:
+        from evo.inject import marker, queue
+        queue.append_workspace_event(self.root, "hello from evo")
+        marker.touch(self.root, sid)
+
+    def test_pretooluse_shell_does_not_consume_directive_on_kimi(self):
+        """Cursor delivers mid-turn on shell via an updated_input echo. Kimi
+        has no such channel — a block here would deny the tool — so the
+        directive must wait for Stop rather than be consumed and lost."""
+        sid = "kimi-test-sid"
+        register_session(self.root, sid, "kimi")
+        self._queue_directive(sid)
+        out = self._fire({
+            "session_id": sid,
+            "cwd": str(self.root),
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Shell",
+            "tool_input": {"command": "ls"},
+        })
+        assert out == {}
+        from evo.inject import marker
+        assert marker.exists(self.root, sid), "directive was consumed without delivery"
+
+    def test_subagent_stop_does_not_consume_directive_on_kimi(self):
+        """Kimi fires SubagentStop fire-and-forget and discards the result,
+        so a directive drained there would vanish."""
+        sid = "kimi-test-sid"
+        register_session(self.root, sid, "kimi")
+        self._queue_directive(sid)
+        out = self._fire({
+            "session_id": sid,
+            "cwd": str(self.root),
+            "hook_event_name": "SubagentStop",
+        })
+        assert out == {}
+        from evo.inject import marker
+        assert marker.exists(self.root, sid), "directive was consumed without delivery"
+
+    def test_stop_delivers_directive_via_block_envelope_on_kimi(self):
+        sid = "kimi-test-sid"
+        register_session(self.root, sid, "kimi")
+        self._queue_directive(sid)
+        out = self._fire({
+            "session_id": sid,
+            "cwd": str(self.root),
+            "hook_event_name": "Stop",
+        })
+        assert out["hookSpecificOutput"]["permissionDecision"] == "deny"
+        assert "hello from evo" in out["hookSpecificOutput"]["permissionDecisionReason"]
 
     def test_pretooluse_edit_denied_when_subagents_only_for_kimi(self):
         sid = "kimi-test-sid"
