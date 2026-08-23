@@ -5626,6 +5626,8 @@ def cmd_opencode_run(args: argparse.Namespace) -> int:
         command.append("--auto")
     if args.model:
         command.extend(["--model", args.model])
+    if args.variant:
+        command.extend(["--variant", args.variant])
     command.append(prompt)
 
     # Replace the CLI process so supervisors observe and signal the real
@@ -7151,6 +7153,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     opencode_run_p.add_argument("--model", default=None,
                                   help="fully qualified OpenCode model id")
+    opencode_run_p.add_argument(
+        "--variant", default=None,
+        help="provider-specific model reasoning variant (for example: max)",
+    )
     opencode_run_p.add_argument(
         "--no-auto", action="store_true",
         help="omit OpenCode's --auto flag",

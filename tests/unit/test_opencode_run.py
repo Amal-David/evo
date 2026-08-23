@@ -23,6 +23,7 @@ class TestOpencodeRun(unittest.TestCase):
             "phase": "discover",
             "goal": "maximize the proved bound",
             "model": "opencode/x-preview-f-free",
+            "variant": None,
             "no_auto": False,
         }
         values.update(overrides)
@@ -48,6 +49,17 @@ class TestOpencodeRun(unittest.TestCase):
             "opencode/x-preview-f-free",
         ])
         self.assertEqual(command[-1], "/discover Goal: maximize the proved bound")
+
+    def test_reasoning_variant_is_forwarded(self):
+        with patch("evo.cli.shutil.which", return_value="/bin/opencode"), \
+             patch("evo.cli.os.execvpe") as execvpe:
+            rc = cmd_opencode_run(self._args(variant="max"))
+
+        self.assertEqual(rc, 127)
+        command = execvpe.call_args.args[1]
+        self.assertEqual(command[-3:], [
+            "--variant", "max", "/discover Goal: maximize the proved bound",
+        ])
 
     def test_empty_goal_fails_before_launch(self):
         with patch("evo.cli.shutil.which", return_value="/bin/opencode"), \
