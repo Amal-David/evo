@@ -5583,6 +5583,57 @@ def cmd_autonomous(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_opencode_run(args: argparse.Namespace) -> int:
+    """Exec OpenCode with an exact evo skill invocation.
+
+    Headless ``opencode run`` sessions do not have an interactive skill menu.
+    Requiring the phase here prevents deployment wrappers from accidentally
+    sending a prose-only prompt that never enters evo's discover/optimize
+    protocol (and therefore never arms the autonomous hook).
+    """
+    opencode = shutil.which("opencode")
+    if opencode is None:
+        print(
+            "ERROR: `opencode` is not on PATH. Install OpenCode before "
+            "running `evo opencode-run`.",
+            file=sys.stderr,
+        )
+        return 2
+
+    phase = args.phase
+    if phase == "optimize":
+        try:
+            root = repo_root()
+        except (OSError, subprocess.CalledProcessError):
+            print("ERROR: run optimize from the target git repository", file=sys.stderr)
+            return 2
+        if not project_path(root).exists():
+            print(
+                "ERROR: evo workspace is not initialized; run "
+                "`evo opencode-run discover ...` first",
+                file=sys.stderr,
+            )
+            return 2
+
+    goal = args.goal.strip()
+    if not goal:
+        print("ERROR: --goal must not be empty", file=sys.stderr)
+        return 2
+    prompt = f"/{phase} Goal: {goal}"
+
+    command = [opencode, "run"]
+    if not args.no_auto:
+        command.append("--auto")
+    if args.model:
+        command.extend(["--model", args.model])
+    command.append(prompt)
+
+    # Replace the CLI process so supervisors observe and signal the real
+    # OpenCode process group directly.
+    os.execvpe(opencode, command, os.environ.copy())
+    return 127
+
+
 def cmd_subagents_only(args: argparse.Namespace) -> int:
     """Arm or disarm subagents-only mode for the current orchestrator session.
 
@@ -7083,6 +7134,28 @@ def build_parser() -> argparse.ArgumentParser:
         help="workspace root to operate on (default: repo root)",
     )
     autonomous_p.set_defaults(func=cmd_autonomous)
+
+    opencode_run_p = sub.add_parser(
+        "opencode-run",
+        help="Run a headless OpenCode session with an exact evo skill invocation",
+        description=(
+            "Exec OpenCode with /discover or /optimize as the first prompt token. "
+            "This is intended for containers and supervisors where prose-only "
+            "prompts can fail to enter evo's protocol."
+        ),
+    )
+    opencode_run_p.add_argument("phase", choices=["discover", "optimize"])
+    opencode_run_p.add_argument(
+        "--goal", required=True,
+        help="goal passed to Evo after the exact skill invocation",
+    )
+    opencode_run_p.add_argument("--model", default=None,
+                                  help="fully qualified OpenCode model id")
+    opencode_run_p.add_argument(
+        "--no-auto", action="store_true",
+        help="omit OpenCode's --auto flag",
+    )
+    opencode_run_p.set_defaults(func=cmd_opencode_run)
 
     subagents_only_p = sub.add_parser(
         "subagents-only",
