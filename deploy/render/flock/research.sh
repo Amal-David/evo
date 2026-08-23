@@ -48,13 +48,35 @@ log "Installing the pinned Evo checkout and OpenCode integration"
 uv tool install --force --editable /workspace/plugins/evo
 evo install opencode --from-path /workspace --force
 evo doctor opencode
-evo opencode-run --help | grep -Fq -- "--variant"
+if ! evo opencode-run --help | grep -Fq -- "--variant"; then
+  log "Bootstrap gate failed: evo opencode-run does not expose --variant"
+  false
+fi
+log "Verified Evo OpenCode max-reasoning variant support"
 for required_skill in discover optimize subagent; do
-  test -f "$HOME/.agents/skills/$required_skill/SKILL.md"
+  if [ ! -f "$HOME/.agents/skills/$required_skill/SKILL.md" ]; then
+    log "Bootstrap gate failed: missing Evo skill $required_skill"
+    false
+  fi
 done
-test -f "$HOME/.agents/skills/yukon-cli/SKILL.md"
-sha256sum "$HOME/.agents/skills/yukon-cli/SKILL.md" \
+log "Verified required Evo skills"
+
+yukon_skill=
+for candidate in \
+  "$HOME/.agents/skills/yukon-cli/SKILL.md" \
+  "$HOME/.config/opencode/skills/yukon-cli/SKILL.md"; do
+  if [ -f "$candidate" ]; then
+    yukon_skill=$candidate
+    break
+  fi
+done
+if [ -z "$yukon_skill" ]; then
+  log "Bootstrap gate failed: installed Yukon CLI skill was not found"
+  false
+fi
+sha256sum "$yukon_skill" \
   > "$state_dir/flock-yukon-skill.sha256"
+log "Verified installed Yukon CLI skill"
 
 if [ ! -d "$benchmark_dir/.git" ]; then
   log "Cloning eigenlabs/flock-challenge-multi with Yukon"
