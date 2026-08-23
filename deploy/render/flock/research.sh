@@ -38,6 +38,8 @@ cleanup() {
 trap cleanup EXIT
 echo "$$" > "$state_dir/flock-supervisor.pid"
 echo v1 > "$state_dir/flock-supervisor-version"
+rm -f "$state_dir/flock-bootstrap-last-error"
+getconf GNU_LIBC_VERSION > "$state_dir/flock-glibc-version"
 
 log "Installing the current Yukon CLI and OpenCode skill"
 curl -fsSL https://api.yukon.org/yukon/install.sh | sh
