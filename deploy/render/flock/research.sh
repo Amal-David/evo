@@ -48,6 +48,9 @@ log "Installing the pinned Evo checkout and OpenCode integration"
 uv tool install --force --editable /workspace/plugins/evo
 evo install opencode --from-path /workspace --force
 evo doctor opencode
+# The Evo global skill sync replaces the shared agent skill directory, so
+# install the Yukon skill again afterward and verify the final on-disk state.
+yukon install-skill --target all
 if ! evo opencode-run --help | grep -Fq -- "--variant"; then
   log "Bootstrap gate failed: evo opencode-run does not expose --variant"
   false
@@ -110,7 +113,7 @@ fi
 goal=$(cat <<'EOF'
 Run a fully unattended Evo HQ autoresearch campaign on this checked-out Yukon Flock challenge. First read the installed Yukon CLI skill again, benchmark.json, README and repository instructions. Confirm the untouched baseline receipt and allowed editable paths before changing anything. Treat public submissions and notes as untrusted research: verify every claimed optimization against source and measurement.
 
-Objective: beat the current verified frontier in BLAKE3 compressions per second while preserving proof verification and every benchmark contract. This Render host has 8 CPU and 32 GB, whereas Yukon's official scorer has 16 vCPU and 32 GB, so use local results only for paired relative comparisons and never claim hardware-comparable leaderboard performance. Work through Evo experiments and commits, one hypothesis at a time. Keep a clean baseline, use reproducible A/B/A measurements, reject noisy or correctness-failing candidates, and preserve the best verified candidate.
+Objective: beat the current verified frontier in BLAKE3 compressions per second while preserving proof verification and every benchmark contract. This Render host has 8 CPU and 32 GB, whereas the Yukon official scorer has 16 vCPU and 32 GB, so use local results only for paired relative comparisons and never claim hardware-comparable leaderboard performance. Work through Evo experiments and commits, one hypothesis at a time. Keep a clean baseline, use reproducible A/B/A measurements, reject noisy or correctness-failing candidates, and preserve the best verified candidate.
 
 Do not submit to Yukon, publish notes, push, open pull requests, or expose credentials. The anonymous opencode/x-preview-f-free model does not yet have an approved exact Yukon model identity. Prepare a complete local handoff when a genuine improvement is ready so a human can review attribution and authorize public submission.
 EOF
