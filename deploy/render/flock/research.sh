@@ -37,7 +37,7 @@ cleanup() {
 }
 trap cleanup EXIT
 echo "$$" > "$state_dir/flock-supervisor.pid"
-echo v1 > "$state_dir/flock-supervisor-version"
+echo v2 > "$state_dir/flock-supervisor-version"
 rm -f "$state_dir/flock-bootstrap-last-error"
 getconf GNU_LIBC_VERSION > "$state_dir/flock-glibc-version"
 
@@ -117,7 +117,7 @@ Run a fully unattended Evo HQ autoresearch campaign on this checked-out Yukon Fl
 
 Objective: beat the current verified frontier in BLAKE3 compressions per second while preserving proof verification and every benchmark contract. This Render host has 8 CPU and 32 GB, whereas the Yukon official scorer has 16 vCPU and 32 GB, so use local results only for paired relative comparisons and never claim hardware-comparable leaderboard performance. Work through Evo experiments and commits, one hypothesis at a time. Keep a clean baseline, use reproducible A/B/A measurements, reject noisy or correctness-failing candidates, and preserve the best verified candidate.
 
-Do not submit to Yukon, publish notes, push, open pull requests, or expose credentials. The anonymous opencode/x-preview-f-free model does not yet have an approved exact Yukon model identity. Prepare a complete local handoff when a genuine improvement is ready so a human can review attribution and authorize public submission.
+Re-check the promoted Yukon frontier before major experiments because competing submissions can move it quickly. Do not submit to Yukon, publish notes, push, open pull requests, or expose credentials. The exact model is OpenCode Zen Ox Alpha Free (opencode/x-preview-f-free), variant max. Prepare a complete local handoff when a genuine improvement is ready so a human can review it and authorize any public submission.
 EOF
 )
 
@@ -161,10 +161,14 @@ while true; do
     sleep 10
   done
 
-  set +e
-  wait "$child_pid"
-  status=$?
-  set -e
+  # `ERR` traps still fire while errexit is disabled. Keep `wait` in an `if`
+  # condition so transient provider failures reach the retry/backoff policy
+  # instead of being misclassified as deterministic bootstrap failures.
+  if wait "$child_pid"; then
+    status=0
+  else
+    status=$?
+  fi
   rm -f "$state_dir/flock-opencode.pid"
   printf '%s\n' "$status" > "$state_dir/flock-last-exit"
 
