@@ -25,6 +25,9 @@ class TestOpencodeRun(unittest.TestCase):
             "model": "opencode/x-preview-f-free",
             "variant": None,
             "no_auto": False,
+            "subagents": None,
+            "budget": None,
+            "stall": None,
         }
         values.update(overrides)
         return argparse.Namespace(**values)
@@ -60,6 +63,55 @@ class TestOpencodeRun(unittest.TestCase):
         self.assertEqual(command[-3:], [
             "--variant", "max", "/discover Goal: maximize the proved bound",
         ])
+
+    def test_optimize_shape_is_forwarded_to_native_evo_skill(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            (root / ".evo").mkdir()
+            (root / ".evo" / "project.md").write_text("# Project\n")
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                with patch("evo.cli.shutil.which", return_value="/bin/opencode"), \
+                     patch("evo.cli.os.execvpe") as execvpe:
+                    rc = cmd_opencode_run(self._args(
+                        phase="optimize", subagents=2, budget=8, stall=20,
+                    ))
+            finally:
+                os.chdir(previous)
+
+        self.assertEqual(rc, 127)
+        self.assertEqual(
+            execvpe.call_args.args[1][-1],
+            "/optimize subagents=2 budget=8 stall=20 Goal: maximize the proved bound",
+        )
+
+    def test_discover_rejects_optimize_shape(self):
+        with patch("evo.cli.shutil.which", return_value="/bin/opencode"), \
+             patch("evo.cli.os.execvpe") as execvpe:
+            rc = cmd_opencode_run(self._args(subagents=2))
+
+        self.assertEqual(rc, 2)
+        execvpe.assert_not_called()
+
+    def test_optimize_shape_requires_positive_integers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            (root / ".evo").mkdir()
+            (root / ".evo" / "project.md").write_text("# Project\n")
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                with patch("evo.cli.shutil.which", return_value="/bin/opencode"), \
+                     patch("evo.cli.os.execvpe") as execvpe:
+                    rc = cmd_opencode_run(self._args(phase="optimize", budget=0))
+            finally:
+                os.chdir(previous)
+
+        self.assertEqual(rc, 2)
+        execvpe.assert_not_called()
 
     def test_empty_goal_fails_before_launch(self):
         with patch("evo.cli.shutil.which", return_value="/bin/opencode"), \

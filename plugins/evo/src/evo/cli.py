@@ -5619,7 +5619,31 @@ def cmd_opencode_run(args: argparse.Namespace) -> int:
     if not goal:
         print("ERROR: --goal must not be empty", file=sys.stderr)
         return 2
-    prompt = f"/{phase} Goal: {goal}"
+    shape = {
+        "subagents": getattr(args, "subagents", None),
+        "budget": getattr(args, "budget", None),
+        "stall": getattr(args, "stall", None),
+    }
+    configured_shape = {name: value for name, value in shape.items() if value is not None}
+    if configured_shape and phase != "optimize":
+        print(
+            "ERROR: --subagents, --budget, and --stall are optimize-only options",
+            file=sys.stderr,
+        )
+        return 2
+    if any(value <= 0 for value in configured_shape.values()):
+        print(
+            "ERROR: --subagents, --budget, and --stall must be positive integers",
+            file=sys.stderr,
+        )
+        return 2
+
+    invocation = f"/{phase}"
+    if configured_shape:
+        invocation += " " + " ".join(
+            f"{name}={value}" for name, value in configured_shape.items()
+        )
+    prompt = f"{invocation} Goal: {goal}"
 
     command = [opencode, "run"]
     if not args.no_auto:
@@ -7156,6 +7180,18 @@ def build_parser() -> argparse.ArgumentParser:
     opencode_run_p.add_argument(
         "--variant", default=None,
         help="provider-specific model reasoning variant (for example: max)",
+    )
+    opencode_run_p.add_argument(
+        "--subagents", type=int, default=None,
+        help="optimize round width forwarded to Evo's native skill invocation",
+    )
+    opencode_run_p.add_argument(
+        "--budget", type=int, default=None,
+        help="optimize per-subagent iteration budget forwarded to Evo",
+    )
+    opencode_run_p.add_argument(
+        "--stall", type=int, default=None,
+        help="optimize no-improvement round limit forwarded to Evo",
     )
     opencode_run_p.add_argument(
         "--no-auto", action="store_true",

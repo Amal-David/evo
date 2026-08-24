@@ -8,6 +8,9 @@ readonly workspace_parent="$data_dir/workspace"
 readonly benchmark_dir="$workspace_parent/flock-challenge-multi"
 readonly model=opencode/x-preview-f-free
 readonly variant=max
+readonly subagents=2
+readonly budget=8
+readonly stall=20
 readonly memory_soft_limit=30064771072
 
 mkdir -p "$state_dir" "$data_dir/logs" "$workspace_parent"
@@ -53,8 +56,8 @@ evo doctor opencode
 # The Evo global skill sync replaces the shared agent skill directory, so
 # install the Yukon skill again afterward and verify the final on-disk state.
 yukon install-skill --target all
-if ! evo opencode-run --help | grep -Fq -- "--variant"; then
-  log "Bootstrap gate failed: evo opencode-run does not expose --variant"
+if ! evo opencode-run --help | grep -Fq -- "--subagents"; then
+  log "Bootstrap gate failed: evo opencode-run does not expose native subagent controls"
   false
 fi
 log "Verified Evo OpenCode max-reasoning variant support"
@@ -117,7 +120,9 @@ Run a fully unattended Evo HQ autoresearch campaign on this checked-out Yukon Fl
 
 Objective: beat the current verified frontier in BLAKE3 compressions per second while preserving proof verification and every benchmark contract. This Render host has 8 CPU and 32 GB, whereas the Yukon official scorer has 16 vCPU and 32 GB, so use local results only for paired relative comparisons and never claim hardware-comparable leaderboard performance. Work through Evo experiments and commits, one hypothesis at a time. Keep a clean baseline, use reproducible A/B/A measurements, reject noisy or correctness-failing candidates, and preserve the best verified candidate.
 
-Re-check the promoted Yukon frontier before major experiments because competing submissions can move it quickly. Do not submit to Yukon, publish notes, push, open pull requests, or expose credentials. The exact model is OpenCode Zen Ox Alpha Free (opencode/x-preview-f-free), variant max. Prepare a complete local handoff when a genuine improvement is ready so a human can review it and authorize any public submission.
+Use Evo's native orchestration exactly as its optimize skill specifies: independent OpenCode task-tool subagents, the mandatory pre/post verifier roles, and the failure-analysis, literature, and frontier-extrapolation ideators when their triggers fire. Keep factual decisions, rejected assumptions, proof/correctness evidence, and score receipts in Evo's scratchpad, annotations, experiment outcomes, and ideator proposal log. Do not replace these with an ad-hoc shell swarm. The two-candidate round width is deliberate; benchmarks may overlap during exploration, but every promotion must be re-confirmed alone to remove CPU-contention bias.
+
+Re-check the promoted Yukon frontier before major experiments because competing submissions can move it quickly. You are authorized to submit a candidate to Yukon without waiting for human review only after a deterministic promotion gate passes: the diff is confined to editable paths; repository identity and benchmark schema are re-verified; correctness and proof checks pass; a solo A/B/A replay against the current promoted base confirms a material improvement beyond measurement noise; the candidate is not a duplicate of an already rejected mechanism; and a reviewed, secret-free 5-100 KiB submission note accurately records the evidence and caveats. Use the exact model attribution OpenCode Zen Ox Alpha Free for opencode/x-preview-f-free, variant max. Submit at most once per independently verified candidate, wait for the terminal Yukon receipt, record the submission ID and result in the local Evo logbook, and treat only an accepted promoted receipt as a leaderboard win. A rejection is evidence for the next Evo round, not permission to resubmit the same candidate. Do not publish standalone notes, push, open pull requests, or expose credentials.
 EOF
 )
 
@@ -138,8 +143,12 @@ while true; do
   printf '%s\n' "$restart_count" > "$state_dir/flock-restarts"
   log "Launching Evo $phase attempt $restart_count with $model variant $variant"
 
+  shape_args=()
+  if [ "$phase" = optimize ]; then
+    shape_args=(--subagents "$subagents" --budget "$budget" --stall "$stall")
+  fi
   setsid evo opencode-run "$phase" --goal "$goal" \
-    --model "$model" --variant "$variant" &
+    --model "$model" --variant "$variant" "${shape_args[@]}" &
   child_pid=$!
   echo "$child_pid" > "$state_dir/flock-opencode.pid"
   pressure_stopped=0
