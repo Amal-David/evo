@@ -30,7 +30,7 @@ nonreclaimable_memory() {
     $1 == "anon" || $1 == "shmem" || $1 == "kernel_stack" || $1 == "slab" || $1 == "sock" {
       total += $2
     }
-    END { print total + 0 }
+    END { printf "%.0f\n", total }
   ' /sys/fs/cgroup/memory.stat
 }
 
