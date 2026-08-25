@@ -25,6 +25,15 @@ log() {
   echo "[$(date -u +%FT%TZ)] $*"
 }
 
+nonreclaimable_memory() {
+  awk '
+    $1 == "anon" || $1 == "shmem" || $1 == "kernel_stack" || $1 == "slab" || $1 == "sock" {
+      total += $2
+    }
+    END { print total + 0 }
+  ' /sys/fs/cgroup/memory.stat
+}
+
 exec 9>"$state_dir/evo-research.lock"
 if ! flock -n 9; then
   log "Another Evo supervisor owns the lock"
@@ -105,12 +114,13 @@ while [ ! -f "$complete_marker" ]; do
   while kill -0 "$child_pid" 2>/dev/null; do
     now=$(date -u +%FT%TZ)
     memory_current=$(cat /sys/fs/cgroup/memory.current 2>/dev/null || echo 0)
-    printf '%s memory_current=%s attempt=%s child=%s phase=%s\n' \
-      "$now" "$memory_current" "$restart_count" "$child_pid" "$phase" \
+    memory_nonreclaimable=$(nonreclaimable_memory 2>/dev/null || echo 0)
+    printf '%s memory_current=%s memory_nonreclaimable=%s attempt=%s child=%s phase=%s\n' \
+      "$now" "$memory_current" "$memory_nonreclaimable" "$restart_count" "$child_pid" "$phase" \
       > "$state_dir/evo-supervisor-heartbeat"
-    if [ "$memory_current" -ge "$memory_soft_limit" ]; then
+    if [ "$memory_nonreclaimable" -ge "$memory_soft_limit" ]; then
       pressure_stopped=1
-      log "Memory reached 12 GiB; stopping this attempt before Render kills the container"
+      log "Non-reclaimable memory reached 12 GiB; stopping this attempt before Render kills the container"
       kill -TERM -- "-$child_pid" 2>/dev/null || true
       sleep 10
       kill -KILL -- "-$child_pid" 2>/dev/null || true
