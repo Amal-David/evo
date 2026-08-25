@@ -18,7 +18,11 @@ WORKDIR /workspace
 COPY . /workspace
 COPY deploy/render/flock/entrypoint.sh /usr/local/bin/flock-entrypoint
 COPY deploy/render/flock/research.sh /usr/local/bin/flock-research
-RUN chmod 0755 /usr/local/bin/flock-entrypoint /usr/local/bin/flock-research \
+COPY deploy/render/flock/submit-probe.sh /usr/local/bin/flock-submit-probe
+RUN chmod 0755 \
+        /usr/local/bin/flock-entrypoint \
+        /usr/local/bin/flock-research \
+        /usr/local/bin/flock-submit-probe \
     && chown -R runner:runner /workspace
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/flock-entrypoint"]

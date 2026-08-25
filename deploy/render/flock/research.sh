@@ -16,6 +16,8 @@ readonly budget=8
 readonly stall=20
 readonly memory_soft_limit=30064771072
 readonly frontier_check_interval=900
+readonly submission_daily_limit=15
+readonly submission_max_inflight=3
 
 mkdir -p \
   "$state_dir" \
@@ -150,6 +152,9 @@ echo "$$" > "$state_dir/flock-supervisor.pid"
 echo v2 > "$state_dir/flock-supervisor-version"
 rm -f "$state_dir/flock-bootstrap-last-error"
 getconf GNU_LIBC_VERSION > "$state_dir/flock-glibc-version"
+printf '%s version=v3 daily_limit=%s max_inflight=%s evaluator=official-yukon\n' \
+  "$(date -u +%FT%TZ)" "$submission_daily_limit" "$submission_max_inflight" \
+  > "$state_dir/flock-submission-policy"
 
 log "Installing the current Yukon CLI and OpenCode skill"
 curl -fsSL https://api.yukon.org/yukon/install.sh | sh
@@ -216,7 +221,11 @@ Objective: beat the current verified frontier in BLAKE3 compressions per second 
 
 Use Evo's native orchestration exactly as its optimize skill specifies: independent OpenCode task-tool subagents, the mandatory pre/post verifier roles, and the failure-analysis, literature, and frontier-extrapolation ideators when their triggers fire. Keep factual decisions, rejected assumptions, proof/correctness evidence, and score receipts in Evo's scratchpad, annotations, experiment outcomes, and ideator proposal log. Do not replace these with an ad-hoc shell swarm. The two-candidate round width is deliberate; benchmarks may overlap during exploration, but every promotion must be re-confirmed alone to remove CPU-contention bias.
 
-The supervisor deterministically refreshes the promoted Git frontier between attempts and starts a fresh Evo epoch when it moves. Treat the commit recorded in /data/state/flock-frontier-current as the only valid baseline. Re-check the latest Yukon submission table before major decisions because validating competitors can move it quickly. You are authorized to submit a candidate to Yukon without waiting for human review only after a deterministic promotion gate passes: the diff is confined to editable paths; repository identity and benchmark schema are re-verified; correctness and proof checks pass; a solo A/B/A replay against the current promoted base confirms a material improvement beyond measurement noise; the candidate is not a duplicate of an already rejected mechanism; and a reviewed, secret-free 5-100 KiB submission note accurately records the evidence and caveats. A target-ISA-only candidate that cannot execute on this Zen 3 host may use one official validation slot only when independent source and assembly review proves the official path is non-inert, byte-exact tests pass, the whole-benchmark exposure credibly exceeds 0.5%, and no equivalent mechanism has an official rejection. Use the exact model attribution OpenCode Zen Ox Alpha Free for opencode/x-preview-f-free, variant max. Submit at most once per independently verified candidate, wait for the terminal Yukon receipt, record the submission ID and result in the local Evo logbook, and treat only an accepted promoted receipt as a leaderboard win. A rejection is evidence for the next Evo round, not permission to resubmit the same candidate. Do not publish standalone notes, push, open pull requests, or expose credentials.
+The supervisor deterministically refreshes the promoted Git frontier between attempts and starts a fresh Evo epoch when it moves. Treat the commit recorded in /data/state/flock-frontier-current as the only valid baseline. Re-check the latest Yukon submission table before major decisions because validating competitors can move it quickly.
+
+Official Yukon scoring is part of the search loop, not a prize reserved for locally obvious winners. Local A/B/A measurements rank candidates and detect hard regressions, but this 8-core Zen 3 host cannot embargo plausible changes for the 16-vCPU Sapphire Rapids scorer. Aim to use 10-15 distinct official probes per UTC day when correctness-clean candidates exist. A candidate is probe-worthy when any one of these is true: its paired local median moves positively, even inside the local noise band; it exercises a source-and-assembly-verified scorer-only path with credible nonzero benchmark exposure and exact-output tests; or it is a carefully reviewed bundle of orthogonal changes whose individual mechanisms are understood and whose interaction has no hard regression. Small moves and uncertain-but-plausible target-specific changes should be submitted so the official receipt resolves the uncertainty. Group compatible low-amplitude changes when doing so gives the scorer a clearer combined signal, but keep enough attribution to learn from the result.
+
+Correctness, scope, freshness, attribution, and public-data safety remain hard gates. Before an official probe, correctness and proof checks must pass, the candidate must be committed and based on the recorded current promoted frontier, every change must be inside the x86 editable paths, and the reviewed 5-100 KiB note must contain no secrets and must explain the base, mechanisms, local evidence or local limitation, and exact composition. Never submit an exact diff twice or a known-broken mechanism unchanged. Use /usr/local/bin/flock-submit-probe --check NOTE first, then /usr/local/bin/flock-submit-probe NOTE; do not call yukon submit directly. The wrapper enforces the current frontier, editable paths, note safety, exact-diff deduplication, at most 15 reserved probes per UTC day, at most three local submissions in flight, and exact model attribution OpenCode Zen Ox Alpha Free for opencode/x-preview-f-free variant max. Do not wait for every terminal receipt before launching another independent candidate when fewer than three are in flight. Poll receipts, record every submission ID and terminal result in the Evo logbook, and immediately use rejections and promotions to update hypotheses, combinations, and what-not-to-try. Only an accepted promoted receipt is a leaderboard win. Do not publish standalone notes, push, open pull requests, or expose credentials.
 EOF
 )
 
