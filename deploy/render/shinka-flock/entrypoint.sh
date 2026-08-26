@@ -36,7 +36,7 @@ exec runuser -u runner -- env \
   XDG_CONFIG_HOME="$runtime_home/.config" \
   XDG_DATA_HOME="$runtime_home/.local/share" \
   OPENCODE_DATA_HOME="$runtime_home/.local/share/opencode" \
-  PATH="/opt/shinka/bin:$runtime_home/.local/bin:/usr/local/bin:/usr/bin:/bin" \
+  PATH="/opt/shinka/bin:/opt/shinka/venv/bin:$runtime_home/.local/bin:/usr/local/bin:/usr/bin:/bin" \
   YUKON_API_TOKEN="$YUKON_API_TOKEN" \
   SHINKA_PRICING_MODE=offline \
   SHINKA_HEADLESS_COMMAND=headless \

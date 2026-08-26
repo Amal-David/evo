@@ -15,8 +15,11 @@ RUN npm install --global \
         @roberttlange/headless@0.6.1
 
 # Pin ShinkaEvolve to the exact source revision used to build this adapter.
-RUN uv pip install --system \
-    "git+https://github.com/SakanaAI/ShinkaEvolve.git@9912af12d423504b8d580f4179fd15f5f88b8c50"
+# Debian Trixie marks its system interpreter as externally managed, so keep
+# the harness dependencies in a dedicated virtual environment.
+RUN python3 -m venv /opt/shinka/venv \
+    && uv pip install --python /opt/shinka/venv/bin/python \
+        "git+https://github.com/SakanaAI/ShinkaEvolve.git@9912af12d423504b8d580f4179fd15f5f88b8c50"
 
 RUN useradd --create-home --shell /bin/bash runner
 
