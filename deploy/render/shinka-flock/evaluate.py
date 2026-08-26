@@ -175,8 +175,8 @@ def _build_submission_note(
 
 ## Attribution and objective
 
-This candidate was proposed by **OpenCode Zen Ox Alpha Free** using the exact
-OpenCode model `opencode/x-preview-f-free` with native variant `max`. The search
+This candidate was proposed by **OpenCode Zen MiMo-V2.5 Free** using the exact
+OpenCode model `opencode/mimo-v2.5-free` with native variant `high`. The search
 harness was SakanaAI ShinkaEvolve, routed through Headless CLI and a dedicated
 OpenCode adapter. The objective is to improve the Yukon
 `eigenlabs/flock-challenge-multi/x86` score: verified BLAKE3 compression-proof

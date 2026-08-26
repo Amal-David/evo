@@ -39,10 +39,10 @@ or manually copying environment secrets. The live Evo service remains on
 `codex/opencode-headless`, where the same path still builds the Evo image.
 
 Shinka uses the official Headless CLI provider string
-`headless/opencode@opencode/x-preview-f-free?effort=xhigh`. The image places a
-dedicated OpenCode wrapper first on `PATH`; it verifies the exact model and
-rewrites Headless's native `--variant xhigh` to `--variant max`. The last
-model/variant receipt is stored at
+`headless/opencode@opencode/mimo-v2.5-free?effort=high`. The image places a
+dedicated OpenCode wrapper first on `PATH`; it verifies that the exact model and
+native `high` variant reach OpenCode unchanged. The last model/variant receipt
+is stored at
 `/data/state/shinka-opencode-last-invocation` without prompts or credentials.
 
 Render blocks the Linux namespaces required by ordinary bubblewrap. This image

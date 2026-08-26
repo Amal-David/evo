@@ -80,7 +80,7 @@ def main() -> None:
         job_type="local",
         language="rust",
         llm_models=[
-            "headless/opencode@opencode/x-preview-f-free?effort=xhigh",
+            "headless/opencode@opencode/mimo-v2.5-free?effort=high",
         ],
         llm_dynamic_selection="fixed",
         meta_rec_interval=None,

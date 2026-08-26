@@ -29,7 +29,7 @@ def test_versioned_seed_is_bounded_and_labels_evidence() -> None:
     assert "fee27b8" in seed
     assert "016b180" in seed
     assert "c260871" in seed
-    assert "opencode/x-preview-f-free" in seed
+    assert "opencode/mimo-v2.5-free" in seed
     assert "ykn_" not in seed
 
 

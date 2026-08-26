@@ -18,8 +18,8 @@ for arg in "$@"; do
     continue
   fi
   if [ "$expect_variant" -eq 1 ]; then
-    variant=max
-    args+=(max)
+    variant=$arg
+    args+=("$arg")
     expect_variant=0
     continue
   fi
@@ -43,16 +43,20 @@ if [ "$expect_model" -eq 1 ] || [ "$expect_variant" -eq 1 ]; then
   exit 2
 fi
 
-# Shinka supplies effort=xhigh because its current parser accepts at most
-# xhigh. Headless turns that into --variant xhigh; this dedicated image
-# rewrites only the native OpenCode variant to max.
+# Keep the Headless-to-OpenCode handoff fail closed: the configured free model
+# and its supported reasoning variant must reach the native OpenCode process
+# unchanged.
 if [ "${1:-}" = run ]; then
   if [ -z "$variant" ]; then
     echo "OpenCode wrapper requires an explicit --variant for Shinka runs" >&2
     exit 2
   fi
-  if [ "$model" != opencode/x-preview-f-free ]; then
+  if [ "$model" != opencode/mimo-v2.5-free ]; then
     echo "OpenCode wrapper rejected an unexpected model" >&2
+    exit 2
+  fi
+  if [ "$variant" != high ]; then
+    echo "OpenCode wrapper rejected an unexpected variant" >&2
     exit 2
   fi
   mkdir -p "$state_dir"

@@ -156,8 +156,8 @@ These are leads, not truths. Prefer one isolated mechanism per lineage.
 6. Local positive, neutral, or modestly negative results may justify an official
    probe for an SPR-specific mechanism, but correctness, ancestry, scope,
    deduplication, attribution, and secret-free-note checks remain mandatory.
-7. Use the exact model attribution `OpenCode Zen Ox Alpha Free`, model
-   `opencode/x-preview-f-free`, variant `max`.
+7. Use the exact model attribution `OpenCode Zen MiMo-V2.5 Free`, model
+   `opencode/mimo-v2.5-free`, variant `high`.
 
 ## Why the default lane changed
 

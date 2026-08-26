@@ -29,7 +29,7 @@ COPY . /workspace
 COPY deploy/render/shinka-flock/entrypoint.sh /usr/local/bin/shinka-flock-entrypoint
 COPY deploy/render/shinka-flock/research.sh /usr/local/bin/shinka-flock-research
 COPY deploy/render/shinka-flock/submit-probe.sh /usr/local/bin/shinka-flock-submit-probe
-COPY deploy/render/shinka-flock/opencode-max.sh /opt/shinka/bin/opencode
+COPY deploy/render/shinka-flock/opencode-guard.sh /opt/shinka/bin/opencode
 RUN cc -O2 -std=c11 -Wall -Wextra -Werror \
         deploy/render/shinka-flock/render-bwrap.c -lseccomp -o /usr/bin/bwrap \
     && /usr/bin/bwrap --version
