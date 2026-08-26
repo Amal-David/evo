@@ -9,8 +9,8 @@ readonly benchmark_dir="$workspace_parent/flock-challenge-multi"
 readonly benchmark_name=eigenlabs/flock-challenge-multi/x86
 readonly frontier_branch=main
 readonly frontier_archive_dir="$data_dir/archive/flock-frontiers"
-readonly model=opencode/x-preview-f-free
-readonly variant=max
+readonly model=opencode/mimo-v2.5-free
+readonly variant=high
 readonly subagents=2
 readonly budget=8
 readonly stall=20
@@ -172,7 +172,7 @@ if ! evo opencode-run --help | grep -Fq -- "--subagents"; then
   log "Bootstrap gate failed: evo opencode-run does not expose native subagent controls"
   false
 fi
-log "Verified Evo OpenCode max-reasoning variant support"
+log "Verified Evo OpenCode reasoning-variant support"
 for required_skill in discover optimize subagent; do
   if [ ! -f "$HOME/.agents/skills/$required_skill/SKILL.md" ]; then
     log "Bootstrap gate failed: missing Evo skill $required_skill"
@@ -225,7 +225,7 @@ The supervisor deterministically refreshes the promoted Git frontier between att
 
 Official Yukon scoring is part of the search loop, not a prize reserved for locally obvious winners. This 8-core Zen 3 host cannot veto plausible changes for the 16-vCPU Sapphire Rapids scorer. Aim to use the full daily quota whenever distinct correctness-clean candidates exist instead of conserving slots. Any positive local point estimate is automatically probe-worthy, including +0.01% and results well inside the local noise band. One clean isolated paired comparison is enough to rank such a candidate for submission; do not require A/B/A confirmation or a minimum effect size first. Neutral or modestly negative local results are also probe-worthy when the mechanism is scorer-specific, core-count-sensitive, masked by local noise, or part of a carefully attributed orthogonal bundle. Use extra local repetitions to investigate correctness or measurement failures, not to delay an official probe whose uncertainty Yukon can resolve. Group compatible low-amplitude changes when that creates a clearer aggregate signal, while preserving enough attribution to learn from the receipt.
 
-Correctness, scope, freshness, attribution, and public-data safety remain hard gates. Before an official probe, correctness and proof checks must pass, the candidate must be committed and based on the recorded current promoted frontier, every change must be inside the x86 editable paths, and the reviewed 5-100 KiB note must contain no secrets and must explain the base, mechanisms, local evidence or local limitation, and exact composition. Never submit an exact diff twice or a known-broken mechanism unchanged. Use /usr/local/bin/flock-submit-probe --check NOTE first, then /usr/local/bin/flock-submit-probe NOTE; do not call yukon submit directly. The wrapper enforces the current frontier, editable paths, note safety, exact-diff deduplication, at most 15 reserved probes per UTC day, at most three local submissions in flight, and exact model attribution OpenCode Zen Ox Alpha Free for opencode/x-preview-f-free variant max. Do not wait for every terminal receipt before launching another independent candidate when fewer than three are in flight. Poll receipts, record every submission ID and terminal result in the Evo logbook, and immediately use rejections and promotions to update hypotheses, combinations, and what-not-to-try. Only an accepted promoted receipt is a leaderboard win. Do not publish standalone notes, push, open pull requests, or expose credentials.
+Correctness, scope, freshness, attribution, and public-data safety remain hard gates. Before an official probe, correctness and proof checks must pass, the candidate must be committed and based on the recorded current promoted frontier, every change must be inside the x86 editable paths, and the reviewed 5-100 KiB note must contain no secrets and must explain the base, mechanisms, local evidence or local limitation, and exact composition. Never submit an exact diff twice or a known-broken mechanism unchanged. Use /usr/local/bin/flock-submit-probe --check NOTE first, then /usr/local/bin/flock-submit-probe NOTE; do not call yukon submit directly. The wrapper enforces the current frontier, editable paths, note safety, exact-diff deduplication, at most 15 reserved probes per UTC day, at most three local submissions in flight, and exact model attribution OpenCode Zen MiMo-V2.5 Free for opencode/mimo-v2.5-free variant high. Do not wait for every terminal receipt before launching another independent candidate when fewer than three are in flight. Poll receipts, record every submission ID and terminal result in the Evo logbook, and immediately use rejections and promotions to update hypotheses, combinations, and what-not-to-try. Only an accepted promoted receipt is a leaderboard win. Do not publish standalone notes, push, open pull requests, or expose credentials.
 EOF
 )
 
