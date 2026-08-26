@@ -57,6 +57,8 @@ def test_submission_note_meets_yukon_size_and_has_exact_attribution() -> None:
     assert "OpenCode Zen Ox Alpha Free" in note
     assert "opencode/x-preview-f-free" in note
     assert "variant `max`" in note
+    assert "Landlock and seccomp" in note
+    assert "bubblewrap" not in note
 
 
 def test_evaluator_captures_baseline_then_scores_isolated_candidate(

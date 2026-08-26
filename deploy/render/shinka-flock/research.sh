@@ -50,7 +50,7 @@ cleanup() {
 }
 trap cleanup EXIT
 echo "$$" > "$state_dir/shinka-supervisor.pid"
-echo v1 > "$state_dir/shinka-supervisor-version"
+echo v2 > "$state_dir/shinka-supervisor-version"
 rm -f "$state_dir/shinka-bootstrap-last-error"
 
 test -s "$research_seed_source"
@@ -72,6 +72,7 @@ shinka_run --help >/dev/null
 headless --check
 opencode --version
 bwrap --version
+echo landlock-seccomp-v1 > "$state_dir/shinka-sandbox-version"
 python3 - <<'PY'
 from shinka.llm.providers.headless import _VALID_EFFORTS
 assert _VALID_EFFORTS == {"low", "medium", "high", "xhigh"}
@@ -117,7 +118,7 @@ date -u +%FT%TZ > "$state_dir/shinka-submissions-refreshed-at"
 
 target_id=$(printf '%s' "$target_path" | sha256sum | awk '{print substr($1,1,16)}')
 task_dir="$data_dir/shinka/tasks/$target_id"
-results_dir="$data_dir/shinka/results/$base_commit/$target_id"
+results_dir="$data_dir/shinka/results/$base_commit/$target_id/landlock-seccomp-v1"
 mkdir -p "$task_dir" "$results_dir"
 cp /workspace/deploy/render/shinka-flock/evaluate.py "$task_dir/evaluate.py"
 cp /workspace/deploy/render/shinka-flock/run_evo.py "$task_dir/run_evo.py"
@@ -131,6 +132,44 @@ cp /workspace/deploy/render/shinka-flock/research_context.py \
 printf '%s base=%s target=%s model=%s variant=%s\n' \
   "$(date -u +%FT%TZ)" "$base_commit" "$target_path" "$model" "$variant" \
   > "$state_dir/shinka-campaign"
+
+log "Capturing a fail-closed trusted baseline before evolutionary search"
+baseline_receipt_dir="$results_dir/baseline-preflight"
+mkdir -p "$baseline_receipt_dir"
+setsid env \
+  SHINKA_BENCHMARK_DIR="$benchmark_dir" \
+  SHINKA_BASE_COMMIT="$base_commit" \
+  SHINKA_TARGET_PATH="$target_path" \
+  SHINKA_RESULTS_DIR="$results_dir" \
+  SHINKA_STATE_DIR="$state_dir" \
+  SHINKA_RESEARCH_SEED_PATH="$research_seed_path" \
+  python3 "$task_dir/evaluate.py" \
+    --program_path "$task_dir/initial.rs" \
+    --results_dir "$baseline_receipt_dir" &
+baseline_pid=$!
+while kill -0 "$baseline_pid" 2>/dev/null; do
+  memory_current=$(cat /sys/fs/cgroup/memory.current 2>/dev/null || echo 0)
+  printf '%s memory_current=%s child=%s phase=baseline-preflight\n' \
+    "$(date -u +%FT%TZ)" "$memory_current" "$baseline_pid" \
+    > "$state_dir/shinka-supervisor-heartbeat"
+  if [ "$memory_current" -ge "$memory_soft_limit" ]; then
+    log "Memory reached the configured ceiling during baseline preflight"
+    kill -TERM -- "-$baseline_pid" 2>/dev/null || true
+    wait "$baseline_pid" || true
+    false
+  fi
+  sleep 10
+done
+wait "$baseline_pid"
+jq -e '.correct == true and (.error | length == 0)' \
+  "$baseline_receipt_dir/correct.json" >/dev/null
+baseline_score=$(jq -er \
+  '.combined_score | select(type == "number" and . > 0)' \
+  "$baseline_receipt_dir/metrics.json")
+printf '%s base=%s score=%s sandbox=landlock-seccomp-v1\n' \
+  "$(date -u +%FT%TZ)" "$base_commit" "$baseline_score" \
+  > "$state_dir/shinka-baseline-ready"
+log "Trusted baseline ready at score $baseline_score"
 
 restart_count=0
 if [ -s "$state_dir/shinka-restarts" ]; then

@@ -209,9 +209,10 @@ claiming that the model's rationale is proof of correctness.
 
 The candidate was rebuilt from locked dependencies with Rust 1.97.0 and
 `-C target-cpu=native`. The benchmark verified the checksum-pinned trusted
-verifier before execution. The generated worker ran inside bubblewrap with
-network access removed and only its private scratch directory writable. Each
-measured proof was generated from a fresh private seed and accepted by the
+verifier before execution. The generated worker ran inside a Render-compatible
+Landlock and seccomp sandbox with network access removed, process-inspection
+syscalls blocked, and filesystem access restricted to reviewed runtime paths.
+Each measured proof was generated from a fresh private seed and accepted by the
 prebuilt pristine verifier. A failed build, sandbox launch, proof capture,
 decode, commitment reconstruction, or verification would have produced no
 score and would have marked the Shinka individual incorrect.

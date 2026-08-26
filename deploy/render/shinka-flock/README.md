@@ -45,8 +45,18 @@ rewrites Headless's native `--variant xhigh` to `--variant max`. The last
 model/variant receipt is stored at
 `/data/state/shinka-opencode-last-invocation` without prompts or credentials.
 
-Candidate benchmarks are serialized and run with the checksum-pinned trusted
-verifier inside bubblewrap. A positive local point estimate may trigger one
+Render blocks the Linux namespaces required by ordinary bubblewrap. This image
+therefore provides a contract-specific `bwrap` compatibility adapter that
+keeps the benchmark and checksum-pinned verifier unchanged while restricting
+the generated worker with Landlock and seccomp. It denies network and
+process-inspection syscalls, limits filesystem access to reviewed runtime
+libraries and the private benchmark scratch directory, and rejects any
+unexpected launcher argument or path.
+
+Before Shinka can generate proposals, the supervisor must capture a positive,
+correct untouched-baseline receipt through that sandbox. A failed baseline now
+holds the campaign for inspection instead of letting zero-score generations
+consume model calls. A positive candidate point estimate may trigger one
 official Yukon probe after current-frontier, editable-path, correctness,
 deduplication, attribution, note-size, note-secret, daily-quota, and cooldown
 checks. The monitor must observe receipts; it must not bypass these gates.

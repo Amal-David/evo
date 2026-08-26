@@ -5,7 +5,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         bubblewrap build-essential ca-certificates clang cmake curl git jq \
-        libssl-dev pkg-config python3 python3-venv tini util-linux unzip \
+        libseccomp-dev libssl-dev pkg-config python3 python3-venv tini \
+        util-linux unzip \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl -LsSf https://astral.sh/uv/install.sh \
@@ -29,6 +30,9 @@ COPY deploy/render/shinka-flock/entrypoint.sh /usr/local/bin/shinka-flock-entryp
 COPY deploy/render/shinka-flock/research.sh /usr/local/bin/shinka-flock-research
 COPY deploy/render/shinka-flock/submit-probe.sh /usr/local/bin/shinka-flock-submit-probe
 COPY deploy/render/shinka-flock/opencode-max.sh /opt/shinka/bin/opencode
+RUN cc -O2 -std=c11 -Wall -Wextra -Werror \
+        deploy/render/shinka-flock/render-bwrap.c -lseccomp -o /usr/bin/bwrap \
+    && /usr/bin/bwrap --version
 RUN chmod 0755 \
         /usr/local/bin/shinka-flock-entrypoint \
         /usr/local/bin/shinka-flock-research \
