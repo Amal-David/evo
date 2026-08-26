@@ -18,10 +18,20 @@ Render configuration:
 - Submission identity: `SHINKA_GIT_USER_NAME` and `SHINKA_GIT_USER_EMAIL`
 
 The default evolutionary lane replaces only
-`crates/flock-prover/src/recycle_alloc.rs`. Set `SHINKA_TARGET_PATH` to another
-single Rust file under the x86 track's editable paths before the first run to
-change lanes. Files over 100 KiB are rejected by default to keep mutation
-prompts bounded.
+`crates/flock-prover/src/r1cs_hashes/blake3_witgen8.rs`. It was selected after
+transferring prior Evo, Codex, Render, and official Yukon evidence: allocator
+spinlock/alignment variants appeared in two negative official bundles, while
+witness arithmetic and projection/drain questions remain open. Set
+`SHINKA_TARGET_PATH` to another single Rust file under the x86 track's editable
+paths before the first run to change lanes. Files over 100 KiB are rejected by
+default to keep mutation prompts bounded.
+
+The curated, secret-free research dossier is versioned at
+`deploy/render/shinka-flock/research-seed.md`. At boot it is copied to
+`/data/shinka/logbook/research-seed.md`; its SHA-256 and provenance receipt are
+written under `/data/state`. Every Shinka proposal receives this context with
+explicit OFFICIAL, LOCAL, OPEN, and CLOSED labels, so historical failures are
+not silently rediscovered or mistaken for current frontier facts.
 
 The dedicated branch deliberately reuses the existing Flock service's
 Dockerfile path so Render can clone its service configuration without exposing

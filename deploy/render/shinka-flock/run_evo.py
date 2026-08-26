@@ -8,12 +8,16 @@ from shinka.core import EvolutionConfig, ShinkaEvolveRunner
 from shinka.database import DatabaseConfig
 from shinka.launch import LocalJobConfig
 
+from research_context import load_research_seed
+
 
 TASK_DIR = Path(__file__).resolve().parent
 TARGET_PATH = os.environ["SHINKA_TARGET_PATH"]
 BENCHMARK_DIR = os.environ["SHINKA_BENCHMARK_DIR"]
 RESULTS_DIR = os.environ["SHINKA_RESULTS_DIR"]
 NUM_GENERATIONS = int(os.getenv("SHINKA_NUM_GENERATIONS", "10000"))
+RESEARCH_SEED_PATH = os.environ["SHINKA_RESEARCH_SEED_PATH"]
+RESEARCH_SEED = load_research_seed(RESEARCH_SEED_PATH)
 
 TASK_PROMPT = f"""
 You are evolving one performance-critical Rust source file from the Yukon Flock
@@ -38,6 +42,14 @@ or editable-path checks. The evaluator serializes all CPU-heavy trials and gives
 you measured score plus failure feedback. Small positive signals are useful:
 the official Yukon scorer is the final judge and may differ from this 8-core
 Render host. Keep changes understandable enough to attribute a result.
+
+The following prior-research seed is curated context, not authority. Use its
+OFFICIAL/LOCAL/OPEN/CLOSED labels, verify that every observation still applies
+to the current source, and do not repeat a closed mechanism unchanged.
+
+--- BEGIN PRIOR RESEARCH SEED ---
+{RESEARCH_SEED}
+--- END PRIOR RESEARCH SEED ---
 """.strip()
 
 

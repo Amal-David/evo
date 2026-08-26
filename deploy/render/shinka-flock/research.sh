@@ -10,12 +10,20 @@ readonly benchmark_name=eigenlabs/flock-challenge-multi/x86
 readonly frontier_branch=main
 readonly model=opencode/x-preview-f-free
 readonly variant=max
-readonly target_path="${SHINKA_TARGET_PATH:-crates/flock-prover/src/recycle_alloc.rs}"
+readonly target_path="${SHINKA_TARGET_PATH:-crates/flock-prover/src/r1cs_hashes/blake3_witgen8.rs}"
 readonly max_target_bytes="${SHINKA_MAX_TARGET_BYTES:-100000}"
 readonly memory_soft_limit="${SHINKA_MEMORY_SOFT_LIMIT:-30064771072}"
 readonly frontier_check_interval="${SHINKA_FRONTIER_CHECK_INTERVAL:-900}"
+readonly research_seed_source=/workspace/deploy/render/shinka-flock/research-seed.md
+readonly research_logbook_dir="$data_dir/shinka/logbook"
+readonly research_seed_path="$research_logbook_dir/research-seed.md"
 
-mkdir -p "$state_dir" "$data_dir/logs" "$workspace_parent" "$data_dir/shinka"
+mkdir -p \
+  "$state_dir" \
+  "$data_dir/logs" \
+  "$workspace_parent" \
+  "$data_dir/shinka" \
+  "$research_logbook_dir"
 exec > >(tee -a "$log_file") 2>&1
 
 log() {
@@ -44,6 +52,14 @@ trap cleanup EXIT
 echo "$$" > "$state_dir/shinka-supervisor.pid"
 echo v1 > "$state_dir/shinka-supervisor-version"
 rm -f "$state_dir/shinka-bootstrap-last-error"
+
+test -s "$research_seed_source"
+cp "$research_seed_source" "$research_seed_path"
+sha256sum "$research_seed_path" | awk '{print $1}' \
+  > "$state_dir/shinka-research-seed.sha256"
+printf '%s source=Amal-David/evo seed=%s\n' \
+  "$(date -u +%FT%TZ)" "$(cat "$state_dir/shinka-research-seed.sha256")" \
+  > "$state_dir/shinka-research-seed-receipt"
 
 log "Installing the current Yukon CLI and agent skill"
 curl -fsSL https://api.yukon.org/yukon/install.sh | sh
@@ -105,6 +121,8 @@ results_dir="$data_dir/shinka/results/$base_commit/$target_id"
 mkdir -p "$task_dir" "$results_dir"
 cp /workspace/deploy/render/shinka-flock/evaluate.py "$task_dir/evaluate.py"
 cp /workspace/deploy/render/shinka-flock/run_evo.py "$task_dir/run_evo.py"
+cp /workspace/deploy/render/shinka-flock/research_context.py \
+  "$task_dir/research_context.py"
 {
   echo '// EVOLVE-BLOCK-START'
   git show "$base_commit:$target_path"
@@ -130,6 +148,7 @@ while true; do
     SHINKA_TARGET_PATH="$target_path" \
     SHINKA_RESULTS_DIR="$results_dir" \
     SHINKA_STATE_DIR="$state_dir" \
+    SHINKA_RESEARCH_SEED_PATH="$research_seed_path" \
     python3 "$task_dir/run_evo.py" &
   child_pid=$!
   echo "$child_pid" > "$state_dir/shinka-runner.pid"
