@@ -22,7 +22,7 @@ class TestOpencodeRun(unittest.TestCase):
         values = {
             "phase": "discover",
             "goal": "maximize the proved bound",
-            "model": "opencode/x-preview-f-free",
+            "model": "opencode/mimo-v2.5-free",
             "variant": None,
             "no_auto": False,
             "subagents": None,
@@ -35,7 +35,7 @@ class TestOpencodeRun(unittest.TestCase):
     def test_parser_requires_an_explicit_phase(self):
         args = build_parser().parse_args([
             "opencode-run", "discover", "--goal", "maximize the proved bound",
-            "--model", "opencode/x-preview-f-free",
+            "--model", "opencode/mimo-v2.5-free",
         ])
         self.assertEqual(args.phase, "discover")
         self.assertEqual(args.func, cmd_opencode_run)
@@ -49,19 +49,19 @@ class TestOpencodeRun(unittest.TestCase):
         command = execvpe.call_args.args[1]
         self.assertEqual(command[:5], [
             "/bin/opencode", "run", "--auto", "--model",
-            "opencode/x-preview-f-free",
+            "opencode/mimo-v2.5-free",
         ])
         self.assertEqual(command[-1], "/discover Goal: maximize the proved bound")
 
     def test_reasoning_variant_is_forwarded(self):
         with patch("evo.cli.shutil.which", return_value="/bin/opencode"), \
              patch("evo.cli.os.execvpe") as execvpe:
-            rc = cmd_opencode_run(self._args(variant="max"))
+            rc = cmd_opencode_run(self._args(variant="high"))
 
         self.assertEqual(rc, 127)
         command = execvpe.call_args.args[1]
         self.assertEqual(command[-3:], [
-            "--variant", "max", "/discover Goal: maximize the proved bound",
+            "--variant", "high", "/discover Goal: maximize the proved bound",
         ])
 
     def test_optimize_shape_is_forwarded_to_native_evo_skill(self):
