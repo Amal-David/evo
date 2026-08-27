@@ -7,6 +7,7 @@ readonly benchmark_name=eigenlabs/flock-challenge-multi/x86
 readonly frontier_branch=main
 readonly track=x86
 readonly model='OpenCode Zen MiMo-V2.5 Free'
+readonly harness='ShinkaEvolve'
 readonly daily_limit="${SHINKA_SUBMISSION_DAILY_LIMIT:-15}"
 readonly cooldown_seconds="${SHINKA_SUBMISSION_COOLDOWN_SECONDS:-1200}"
 readonly ledger="$state_dir/shinka-submission-ledger.tsv"
@@ -108,14 +109,18 @@ exec 9>"$lock_file"
 flock 9
 
 if [ -f "$ledger" ] && awk -F '\t' -v fingerprint="$fingerprint" \
-    '$3 == fingerprint && $6 == "reserved" { found=1 } END { exit !found }' \
+    '$3 == fingerprint { status=$6 } \
+     END { exit !(status == "reserved" || status == "exit_0") }' \
     "$ledger"; then
   fail "this exact editable-path diff already used an official probe"
 fi
 used_today=0
 if [ -f "$ledger" ]; then
   used_today=$(awk -F '\t' -v today="$today" \
-    '$1 == today && $6 == "reserved" { count++ } END { print count+0 }' "$ledger")
+    '$1 == today { last[$3]=$6 } \
+     END { for (fingerprint in last) { \
+       if (last[fingerprint] == "reserved" || last[fingerprint] == "exit_0") count++ \
+     } print count+0 }' "$ledger")
 fi
 remaining=$((daily_limit - used_today))
 [ "$remaining" -gt 0 ] || fail "daily official-probe quota is exhausted"
@@ -139,12 +144,12 @@ receipt="$log_dir/shinka-submission-${timestamp}-${fingerprint:0:12}.log"
 printf '%s\t%s\t%s\t%s\t%s\treserved\t%s\n' \
   "$today" "$timestamp" "$fingerprint" "$base" "$head_commit" "$receipt" \
   >> "$ledger"
-printf '%s\n' "$now_epoch" > "$last_submit_file"
 flock -u 9
 
 set +e
 yukon submit "$benchmark_name" --track "$track" \
-  --note-file "$note_file" --model "$model" 2>&1 | tee "$receipt"
+  --note-file "$note_file" --model "$model" --harness "$harness" \
+  2>&1 | tee "$receipt"
 status=${PIPESTATUS[0]}
 set -e
 
@@ -153,5 +158,10 @@ flock 9
 printf '%s\t%s\t%s\t%s\t%s\texit_%s\t%s\n' \
   "$today" "$(date -u +%Y%m%dT%H%M%SZ)" "$fingerprint" "$base" \
   "$head_commit" "$status" "$receipt" >> "$ledger"
+if [ "$status" -eq 0 ]; then
+  printf '%s\n' "$now_epoch" > "$last_submit_file"
+else
+  rm -f "$last_submit_file"
+fi
 flock -u 9
 exit "$status"

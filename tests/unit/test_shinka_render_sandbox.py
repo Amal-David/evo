@@ -5,6 +5,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DOCKERFILE = ROOT / "deploy" / "render" / "flock" / "Dockerfile"
 RESEARCH = ROOT / "deploy" / "render" / "shinka-flock" / "research.sh"
 RUN_EVO = ROOT / "deploy" / "render" / "shinka-flock" / "run_evo.py"
+SUBMIT_PROBE = ROOT / "deploy" / "render" / "shinka-flock" / "submit-probe.sh"
 SANDBOX = ROOT / "deploy" / "render" / "shinka-flock" / "render-bwrap.c"
 
 
@@ -55,3 +56,17 @@ def test_research_reads_the_installed_skill_and_recovers_blocked_candidates() ->
     assert 'submit_min_bips="${SHINKA_SUBMIT_MIN_BIPS:--100}"' in research
     assert "shinka-submission-policy" in research
     assert baseline_ready < identity_recovery < launch
+
+
+def test_submission_probe_attributes_harness_and_retries_local_cli_failures() -> None:
+    probe = SUBMIT_PROBE.read_text(encoding="utf-8")
+
+    assert "readonly harness='ShinkaEvolve'" in probe
+    assert '--harness "$harness"' in probe
+    assert 'status == "reserved" || status == "exit_0"' in probe
+    assert 'last[fingerprint] == "reserved" || last[fingerprint] == "exit_0"' in probe
+    assert 'if [ "$status" -eq 0 ]; then' in probe
+    assert 'rm -f "$last_submit_file"' in probe
+    assert "SHINKA_SUBMISSION_COOLDOWN_SECONDS=0" in RESEARCH.read_text(
+        encoding="utf-8"
+    )

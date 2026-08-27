@@ -288,7 +288,7 @@ if [ -s "$recovery_program" ] && [ -s "$recovery_metrics" ] && \
    jq -e '.public.submission_status == "blocked-missing-git-identity"' \
      "$recovery_metrics" >/dev/null; then
   recovery_hash=$(sha256sum "$recovery_program" | awk '{print $1}')
-  recovery_receipt="$state_dir/shinka-identity-recovery-v2-$recovery_hash"
+  recovery_receipt="$state_dir/shinka-identity-recovery-v3-$recovery_hash"
   if [ ! -s "$recovery_receipt" ]; then
     recovery_results="$results_dir/identity-recovery/$recovery_hash"
     mkdir -p "$recovery_results"
@@ -306,6 +306,7 @@ if [ -s "$recovery_program" ] && [ -s "$recovery_metrics" ] && \
       SHINKA_GIT_USER_NAME="$candidate_git_user_name" \
       SHINKA_GIT_USER_EMAIL="$candidate_git_user_email" \
       SHINKA_SUBMIT_MIN_BIPS="$submit_min_bips" \
+      SHINKA_SUBMISSION_COOLDOWN_SECONDS=0 \
       python3 "$task_dir/evaluate.py" \
         --program_path "$recovery_program" \
         --results_dir "$recovery_results" &
