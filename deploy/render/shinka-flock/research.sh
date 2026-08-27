@@ -139,7 +139,7 @@ if [ ! -s "$seed_patch" ] || [ ! -s "$seed_target_source" ] || \
   # the full source commit itself; the reset receipt contains it only in the
   # `from` field, while HEAD independently verifies the submission base.
   grep -Fq "$seed_source_commit" "$seed_stage/reset.log"
-  git diff --cached --check
+  git -c core.whitespace=cr-at-eol diff --cached --check
   git diff --cached --name-only > "$seed_stage/changed-paths.txt"
   test -s "$seed_stage/changed-paths.txt"
   grep -Fxq "$target_path" "$seed_stage/changed-paths.txt"
@@ -183,7 +183,7 @@ if ! git -C "$seed_preflight" apply --index --3way "$seed_patch"; then
   log "Near-miss seed no longer applies cleanly to the promoted frontier"
   false
 fi
-git -C "$seed_preflight" diff --cached --check
+git -C "$seed_preflight" -c core.whitespace=cr-at-eol diff --cached --check
 git worktree remove --force "$seed_preflight"
 rmdir "$seed_preflight_parent"
 printf '%s submission=%s source=%s source_base=%s promoted=%s patch_sha256=%s\n' \

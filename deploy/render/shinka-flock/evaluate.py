@@ -53,6 +53,14 @@ def sanitize_candidate(source: str) -> str:
     return cleaned + "\n"
 
 
+def _write_candidate_with_base_newlines(destination: Path, candidate: str) -> None:
+    base_bytes = destination.read_bytes()
+    newline = b"\r\n" if b"\r\n" in base_bytes else b"\n"
+    normalized = candidate.replace("\r\n", "\n").replace("\r", "\n")
+    payload = normalized.replace("\n", newline.decode("ascii")).encode("utf-8")
+    destination.write_bytes(payload)
+
+
 def score_from_payload(payload: Any) -> float:
     if isinstance(payload, dict):
         for key in ("score", "combined_score"):
@@ -349,10 +357,23 @@ def _maybe_submit(
     if not user_name or not user_email:
         return "blocked-missing-git-identity"
 
-    diff_check = _run(["git", "diff", "--check"], cwd=worktree)
+    diff_check = _run(
+        ["git", "-c", "core.whitespace=cr-at-eol", "diff", "--check"],
+        cwd=worktree,
+    )
     if diff_check.returncode != 0:
         return "blocked-diff-check"
-    cached_diff_check = _run(["git", "diff", "--cached", "--check"], cwd=worktree)
+    cached_diff_check = _run(
+        [
+            "git",
+            "-c",
+            "core.whitespace=cr-at-eol",
+            "diff",
+            "--cached",
+            "--check",
+        ],
+        cwd=worktree,
+    )
     if cached_diff_check.returncode != 0:
         return "blocked-cached-diff-check"
     changed_paths = _changed_paths(worktree, base_commit)
@@ -501,7 +522,8 @@ def evaluate(program_path: Path, results_dir: Path) -> None:
                 _apply_seed_patch(worktree, seed_patch)
             destination = worktree / target_path
             destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_text(candidate, encoding="utf-8")
+            if not is_baseline:
+                _write_candidate_with_base_newlines(destination, candidate)
             score = _benchmark(
                 worktree,
                 results_dir,

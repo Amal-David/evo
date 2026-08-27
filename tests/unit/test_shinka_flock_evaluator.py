@@ -166,8 +166,8 @@ def test_evaluator_layers_seed_patch_but_does_not_resubmit_seed(
     support = repository / support_path
     target.parent.mkdir(parents=True)
     support.parent.mkdir(parents=True)
-    target.write_text("pub fn witness() -> u64 { 100 }\n", encoding="utf-8")
-    support.write_text("pub fn merkle() -> u64 { 100 }\n", encoding="utf-8")
+    target.write_bytes(b"pub fn witness() -> u64 { 100 }\r\n")
+    support.write_bytes(b"pub fn merkle() -> u64 { 100 }\r\n")
     benchmark = repository / "benchmark.sh"
     benchmark.write_text(
         "#!/bin/sh\n"
@@ -202,22 +202,16 @@ def test_evaluator_layers_seed_patch_but_does_not_resubmit_seed(
         text=True,
     ).stdout.strip()
 
-    target.write_text(
-        "pub fn witness() -> u64 { 102 } // seed_witness\n", encoding="utf-8"
-    )
-    support.write_text(
-        "pub fn merkle() -> u64 { 102 } // seed_merkle\n", encoding="utf-8"
-    )
+    target.write_bytes(b"pub fn witness() -> u64 { 102 } // seed_witness\r\n")
+    support.write_bytes(b"pub fn merkle() -> u64 { 102 } // seed_merkle\r\n")
     seed_patch = tmp_path / "seed.patch"
-    seed_patch.write_text(
+    seed_patch.write_bytes(
         subprocess.run(
             ["git", "diff", "--binary"],
             cwd=repository,
             check=True,
             capture_output=True,
-            text=True,
         ).stdout,
-        encoding="utf-8",
     )
     seed_target = tmp_path / "seed-target.rs"
     seed_target.write_text(target.read_text(encoding="utf-8"), encoding="utf-8")
