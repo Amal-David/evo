@@ -20,6 +20,7 @@ def test_entrypoint_isolates_free_model_from_stale_zen_credentials() -> None:
     assert 'OPENCODE_DATA_HOME="$runtime_data_home/opencode"' in entrypoint
     assert 'XDG_DATA_HOME="$runtime_home/.local/share"' not in entrypoint
     assert 'SHINKA_HEADLESS_TIMEOUT="${SHINKA_HEADLESS_TIMEOUT:-300}"' in entrypoint
+    assert 'SHINKA_LLM_MAX_RETRIES="${SHINKA_LLM_MAX_RETRIES:-1}"' in entrypoint
 
 
 def test_runner_uses_weighted_smoke_tested_free_pool() -> None:
@@ -31,7 +32,7 @@ def test_runner_uses_weighted_smoke_tested_free_pool() -> None:
     )
     assert "headless/opencode@opencode/hy3-free?effort=high" in runner
     assert 'llm_dynamic_selection="fixed"' in runner
-    assert 'llm_dynamic_selection_kwargs={"prior_probs": [0.65, 0.35]}' in runner
+    assert 'llm_dynamic_selection_kwargs={"prior_probs": [0.9, 0.1]}' in runner
     assert "opencode/mimo-v2.5-free" not in runner
 
 

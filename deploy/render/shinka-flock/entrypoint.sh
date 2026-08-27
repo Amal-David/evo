@@ -45,6 +45,7 @@ exec runuser -u runner -- env \
   SHINKA_PRICING_MODE=offline \
   SHINKA_HEADLESS_COMMAND=headless \
   SHINKA_HEADLESS_TIMEOUT="${SHINKA_HEADLESS_TIMEOUT:-300}" \
+  SHINKA_LLM_MAX_RETRIES="${SHINKA_LLM_MAX_RETRIES:-1}" \
   RAYON_NUM_THREADS="${RAYON_NUM_THREADS:-8}" \
   NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=4096}" \
   /usr/local/bin/shinka-flock-research

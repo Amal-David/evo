@@ -49,12 +49,14 @@ Dockerfile path so Render can clone its service configuration without exposing
 or manually copying environment secrets. The live Evo service remains on
 `codex/opencode-headless`, where the same path still builds the Evo image.
 
-Shinka uses a weighted zero-cost Headless/OpenCode pool: 65% Muse Spark 1.2
-Contributor Free and 35% Hy3 Free, both with native `high` reasoning. These two
+Shinka uses a weighted zero-cost Headless/OpenCode pool: 90% Muse Spark 1.2
+Contributor Free and 10% Hy3 Free, both with native `high` reasoning. These two
 anonymous models were smoke-tested independently before rollout. A five-minute
 Headless timeout prevents a throttled provider request from monopolizing a
-proposal slot indefinitely. The image places a dedicated OpenCode wrapper first
-on `PATH`; it admits only the reviewed pool and verifies that the native `high`
+proposal slot indefinitely, and Shinka performs only one provider attempt per
+selected arm so a failed call returns to pool selection instead of retrying the
+same model three times. The image places a dedicated OpenCode wrapper first on
+`PATH`; it admits only the reviewed pool and verifies that the native `high`
 variant reaches OpenCode unchanged. The last model/variant receipt is stored at
 `/data/state/shinka-opencode-last-invocation` without prompts or credentials.
 

@@ -101,7 +101,7 @@ def main() -> None:
             "headless/opencode@opencode/hy3-free?effort=high",
         ],
         llm_dynamic_selection="fixed",
-        llm_dynamic_selection_kwargs={"prior_probs": [0.65, 0.35]},
+        llm_dynamic_selection_kwargs={"prior_probs": [0.9, 0.1]},
         meta_rec_interval=None,
         embedding_model=None,
         init_program_path=str(TASK_DIR / "initial.rs"),
