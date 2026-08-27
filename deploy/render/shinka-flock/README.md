@@ -15,7 +15,10 @@ Render configuration:
 - Required secret: `YUKON_API_TOKEN`
 - Required OpenCode authentication: the same OpenCode configuration or
   provider environment used by the existing Flock service
-- Submission identity: `SHINKA_GIT_USER_NAME` and `SHINKA_GIT_USER_EMAIL`
+- Optional submission-identity overrides: `SHINKA_GIT_USER_NAME` and
+  `SHINKA_GIT_USER_EMAIL`. The service defaults to the public
+  `Amal-David`/GitHub-noreply identity so a correct candidate cannot be blocked
+  merely because private identity values were not copied into Render.
 
 The default evolutionary lane replaces only
 `crates/flock-prover/src/r1cs_hashes/blake3_witgen8.rs`. It starts from official
@@ -35,6 +38,11 @@ The curated, secret-free research dossier is versioned at
 written under `/data/state`. Every Shinka proposal receives this context with
 explicit OFFICIAL, LOCAL, OPEN, and CLOSED labels, so historical failures are
 not silently rediscovered or mistaken for current frontier facts.
+
+At the same gate, the freshly installed `yukon-cli` skill is read into the
+Shinka task prompt and checksummed under `/data/state`. The Yukon participation
+token remains only in the service environment; it is never copied into the
+prompt, logbook, note, result archive, or public submission.
 
 The dedicated branch deliberately reuses the existing Flock service's
 Dockerfile path so Render can clone its service configuration without exposing

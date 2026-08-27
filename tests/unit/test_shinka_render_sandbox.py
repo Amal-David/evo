@@ -4,6 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 DOCKERFILE = ROOT / "deploy" / "render" / "flock" / "Dockerfile"
 RESEARCH = ROOT / "deploy" / "render" / "shinka-flock" / "research.sh"
+RUN_EVO = ROOT / "deploy" / "render" / "shinka-flock" / "run_evo.py"
 SANDBOX = ROOT / "deploy" / "render" / "shinka-flock" / "render-bwrap.c"
 
 
@@ -34,3 +35,21 @@ def test_research_fails_closed_until_trusted_baseline_is_correct() -> None:
     assert "git worktree add --quiet --detach" in research
     assert 'seed_lineage="${seed_submission:0:8}-${recorded_seed_sha:0:12}"' in research
     assert "$target_id/$seed_lineage/landlock-seccomp-v1" in research
+
+
+def test_research_reads_the_installed_skill_and_recovers_blocked_candidates() -> None:
+    research = RESEARCH.read_text(encoding="utf-8")
+    run_evo = RUN_EVO.read_text(encoding="utf-8")
+    baseline_ready = research.index("Trusted baseline ready")
+    identity_recovery = research.index("phase=identity-recovery")
+    launch = research.index("Launching ShinkaEvolve attempt")
+
+    assert "shinka-yukon-skill.sha256" in research
+    assert 'test -s "$yukon_skill_path"' in research
+    assert 'SHINKA_YUKON_SKILL_PATH="$yukon_skill_path"' in research
+    assert "BEGIN INSTALLED YUKON AGENT SKILL" in run_evo
+    assert 'candidate_git_user_name="${SHINKA_GIT_USER_NAME:-Amal-David}"' in research
+    assert "Amal-David@users.noreply.github.com" in research
+    assert "blocked-missing-git-identity" in research
+    assert "identity-recovery" in research
+    assert baseline_ready < identity_recovery < launch

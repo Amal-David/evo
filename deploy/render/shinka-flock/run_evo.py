@@ -19,6 +19,10 @@ NUM_GENERATIONS = int(os.getenv("SHINKA_NUM_GENERATIONS", "10000"))
 RESEARCH_SEED_PATH = os.environ["SHINKA_RESEARCH_SEED_PATH"]
 RESEARCH_SEED = load_research_seed(RESEARCH_SEED_PATH)
 SEED_SUBMISSION = os.getenv("SHINKA_SEED_SUBMISSION", "none")
+YUKON_SKILL_PATH = Path(os.environ["SHINKA_YUKON_SKILL_PATH"])
+YUKON_SKILL = YUKON_SKILL_PATH.read_text(encoding="utf-8")
+if not YUKON_SKILL.strip() or len(YUKON_SKILL.encode("utf-8")) > 128 * 1024:
+    raise ValueError("installed yukon-cli skill is empty or unexpectedly large")
 
 TASK_PROMPT = f"""
 You are evolving one performance-critical Rust source file from the Yukon Flock
@@ -51,6 +55,14 @@ Render host. Keep changes understandable enough to attribute a result.
 The following prior-research seed is curated context, not authority. Use its
 OFFICIAL/LOCAL/OPEN/CLOSED labels, verify that every observation still applies
 to the current source, and do not repeat a closed mechanism unchanged.
+
+Read and follow the installed Yukon agent skill below. The deterministic
+evaluator owns setup, correctness verification, Git preparation, public-note
+review, and submission; do not bypass it or attempt to expose credentials.
+
+--- BEGIN INSTALLED YUKON AGENT SKILL ---
+{YUKON_SKILL}
+--- END INSTALLED YUKON AGENT SKILL ---
 
 --- BEGIN PRIOR RESEARCH SEED ---
 {RESEARCH_SEED}

@@ -25,6 +25,9 @@ readonly seed_patch="$seed_root/seed.patch"
 readonly seed_target_source="$seed_root/target.rs"
 readonly seed_changed_paths="$seed_root/changed-paths.txt"
 readonly seed_receipt="$seed_root/receipt.txt"
+readonly yukon_skill_path="$HOME/.config/opencode/skills/yukon-cli/SKILL.md"
+readonly candidate_git_user_name="${SHINKA_GIT_USER_NAME:-Amal-David}"
+readonly candidate_git_user_email="${SHINKA_GIT_USER_EMAIL:-Amal-David@users.noreply.github.com}"
 
 mkdir -p \
   "$state_dir" \
@@ -73,6 +76,12 @@ log "Installing the current Yukon CLI and agent skill"
 curl -fsSL https://api.yukon.org/yukon/install.sh | sh
 yukon install-skill --target opencode
 yukon install-skill --target agents
+test -s "$yukon_skill_path"
+yukon_skill_sha=$(sha256sum "$yukon_skill_path" | awk '{print $1}')
+printf '%s path=%s sha256=%s\n' \
+  "$(date -u +%FT%TZ)" "$yukon_skill_path" "$yukon_skill_sha" \
+  > "$state_dir/shinka-yukon-skill-receipt"
+printf '%s\n' "$yukon_skill_sha" > "$state_dir/shinka-yukon-skill.sha256"
 
 log "Verifying Shinka, Headless, OpenCode and sandbox prerequisites"
 python3 -c 'import shinka'
@@ -263,6 +272,62 @@ printf '%s base=%s score=%s sandbox=landlock-seccomp-v1\n' \
   > "$state_dir/shinka-baseline-ready"
 log "Trusted baseline ready at score $baseline_score"
 
+# Releases before the submission identity default could benchmark a correct,
+# positive candidate but stop at `blocked-missing-git-identity`. Re-evaluate
+# the saved best program once through the normal trusted evaluator so it can
+# pass the same current-frontier, correctness, note, deduplication, and quota
+# gates as a newly generated candidate. The program hash makes the recovery
+# durable and prevents repeated benchmark runs after an instance replacement.
+recovery_program="$results_dir/best/main.rs"
+recovery_metrics="$results_dir/best/results/metrics.json"
+if [ -s "$recovery_program" ] && [ -s "$recovery_metrics" ] && \
+   jq -e '.public.submission_status == "blocked-missing-git-identity"' \
+     "$recovery_metrics" >/dev/null; then
+  recovery_hash=$(sha256sum "$recovery_program" | awk '{print $1}')
+  recovery_receipt="$state_dir/shinka-identity-recovery-$recovery_hash"
+  if [ ! -s "$recovery_receipt" ]; then
+    recovery_results="$results_dir/identity-recovery/$recovery_hash"
+    mkdir -p "$recovery_results"
+    log "Re-evaluating the saved best candidate after submission identity recovery"
+    setsid env \
+      SHINKA_BENCHMARK_DIR="$benchmark_dir" \
+      SHINKA_BASE_COMMIT="$base_commit" \
+      SHINKA_TARGET_PATH="$target_path" \
+      SHINKA_RESULTS_DIR="$results_dir" \
+      SHINKA_STATE_DIR="$state_dir" \
+      SHINKA_RESEARCH_SEED_PATH="$research_seed_path" \
+      SHINKA_SEED_PATCH="$seed_patch" \
+      SHINKA_SEED_TARGET_SOURCE="$seed_target_source" \
+      SHINKA_SEED_SUBMISSION="$seed_submission" \
+      SHINKA_GIT_USER_NAME="$candidate_git_user_name" \
+      SHINKA_GIT_USER_EMAIL="$candidate_git_user_email" \
+      python3 "$task_dir/evaluate.py" \
+        --program_path "$recovery_program" \
+        --results_dir "$recovery_results" &
+    recovery_pid=$!
+    while kill -0 "$recovery_pid" 2>/dev/null; do
+      memory_current=$(cat /sys/fs/cgroup/memory.current 2>/dev/null || echo 0)
+      printf '%s memory_current=%s child=%s phase=identity-recovery\n' \
+        "$(date -u +%FT%TZ)" "$memory_current" "$recovery_pid" \
+        > "$state_dir/shinka-supervisor-heartbeat"
+      if [ "$memory_current" -ge "$memory_soft_limit" ]; then
+        log "Memory reached the configured ceiling during identity recovery"
+        kill -TERM -- "-$recovery_pid" 2>/dev/null || true
+        wait "$recovery_pid" || true
+        false
+      fi
+      sleep 10
+    done
+    wait "$recovery_pid"
+    recovery_status=$(jq -er '.public.submission_status' \
+      "$recovery_results/metrics.json")
+    printf '%s program_sha256=%s status=%s\n' \
+      "$(date -u +%FT%TZ)" "$recovery_hash" "$recovery_status" \
+      > "$recovery_receipt"
+    log "Identity recovery completed with submission status $recovery_status"
+  fi
+fi
+
 restart_count=0
 if [ -s "$state_dir/shinka-restarts" ]; then
   restart_count=$(tr -cd '0-9' < "$state_dir/shinka-restarts")
@@ -283,6 +348,9 @@ while true; do
     SHINKA_SEED_PATCH="$seed_patch" \
     SHINKA_SEED_TARGET_SOURCE="$seed_target_source" \
     SHINKA_SEED_SUBMISSION="$seed_submission" \
+    SHINKA_YUKON_SKILL_PATH="$yukon_skill_path" \
+    SHINKA_GIT_USER_NAME="$candidate_git_user_name" \
+    SHINKA_GIT_USER_EMAIL="$candidate_git_user_email" \
     python3 "$task_dir/run_evo.py" &
   child_pid=$!
   echo "$child_pid" > "$state_dir/shinka-runner.pid"
