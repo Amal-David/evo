@@ -72,6 +72,30 @@ def _tail(value: str, limit: int = 4000) -> str:
     return normalized[-limit:] if normalized else "no diagnostic output"
 
 
+def _changed_paths(worktree: Path, base_commit: str) -> list[str]:
+    completed = _run(
+        ["git", "diff", "--name-only", base_commit], cwd=worktree, timeout=120
+    )
+    if completed.returncode != 0:
+        raise EvaluationError(
+            f"could not enumerate candidate paths: {_tail(completed.stderr)}"
+        )
+    return [line for line in completed.stdout.splitlines() if line]
+
+
+def _apply_seed_patch(worktree: Path, seed_patch: Path) -> None:
+    completed = _run(
+        ["git", "apply", "--index", "--3way", str(seed_patch)],
+        cwd=worktree,
+        timeout=120,
+    )
+    if completed.returncode != 0:
+        raise EvaluationError(
+            "official near-miss seed does not apply to this frontier: "
+            f"{_tail(completed.stderr or completed.stdout)}"
+        )
+
+
 def _write_result(
     results_dir: Path,
     *,
@@ -169,8 +193,20 @@ def _build_submission_note(
     baseline_score: float,
     candidate_score: float,
     diff_stat: str,
+    changed_paths: list[str],
+    seed_submission: str | None = None,
 ) -> str:
     delta = 100.0 * (candidate_score / baseline_score - 1.0)
+    changed_path_list = "\n".join(f"- `{path}`" for path in changed_paths)
+    seed_context = (
+        f"The evolutionary parent was correctness-clean official near-miss "
+        f"submission `{seed_submission}`. Its fixed editable-path changes were "
+        "replayed on the promoted base before Shinka replaced the mutable "
+        "witness file. The unchanged seed is never resubmitted; this candidate "
+        "contains a materially different witness-file descendant."
+        if seed_submission
+        else "No external submission seed was layered into this candidate."
+    )
     note = f"""# ShinkaEvolve OpenCode candidate
 
 ## Attribution and objective
@@ -184,9 +220,12 @@ throughput on the official 16-vCPU Intel Sapphire Rapids runner.
 
 The promoted source base used for this experiment was `{base_commit}`. The
 candidate commit prepared for this submission is `{candidate_commit}`. Shinka
-was constrained to replace one solver-editable Rust source file:
-`{target_path}`. No manifest, dependency, benchmark harness, verifier, setup
-script, workflow, or score-handling file was editable.
+was constrained to replace one mutable Rust source file, `{target_path}`, while
+the evaluator could replay a reviewed seed patch within the solver-editable
+roots. No manifest, dependency, benchmark harness, verifier, setup script,
+workflow, or score-handling file was editable.
+
+{seed_context}
 
 ## Search method
 
@@ -217,11 +256,14 @@ prebuilt pristine verifier. A failed build, sandbox launch, proof capture,
 decode, commitment reconstruction, or verification would have produced no
 score and would have marked the Shinka individual incorrect.
 
-Only `{target_path}` differs from the recorded promoted base. The submission
-wrapper independently rechecked current-frontier ancestry, repository identity,
-schema-v2 track identity, editable paths, a clean committed worktree, exact-diff
-deduplication, note size, note secret patterns, and the remote `main` commit
-immediately before invoking Yukon.
+The candidate changes exactly these reviewed solver-editable paths:
+
+{changed_path_list}
+
+The submission wrapper independently rechecked current-frontier ancestry,
+repository identity, schema-v2 track identity, editable paths, a clean committed
+worktree, exact-diff deduplication, note size, note secret patterns, and the
+remote `main` commit immediately before invoking Yukon.
 
 ## Local measurement
 
@@ -241,10 +283,11 @@ that machine; Yukon is the authoritative evaluator.
 {diff_stat.strip() or target_path}
 ```
 
-The candidate is intentionally narrow so an official receipt has useful
-attribution. It does not bundle unrelated edits from other Shinka islands or
-from the separate Evo campaign. It adds no dependency and changes no protected
-file. If rejected, this exact editable-path diff will not be submitted again.
+The candidate is a controlled descendant of one named official near-miss, so an
+official receipt has useful attribution. It does not bundle unrelated edits
+from other Shinka islands or from the separate Evo campaign. It adds no
+dependency and changes no protected file. If rejected, this exact editable-path
+diff will not be submitted again.
 
 ## Reproduction outline
 
@@ -264,15 +307,13 @@ does not imply acceptance or promotion.
 
 ## Caveats and follow-up
 
-This experiment evolves one file at a time. Interactions with other prover
-components may therefore remain unexplored, and a later orthogonal bundle may
-outperform any isolated candidate. Conversely, combining changes before their
-individual receipts would weaken attribution, so this candidate is submitted
-alone. The local sample count is deliberately small enough to make evolutionary
-search practical; the official 100-trial median is the final performance
-evidence. Correctness here means acceptance by the committed trusted verifier
-for every local private trial, while the official run repeats the stronger full
-workload contract.
+This experiment evolves one file at a time above a fixed, named multi-file seed.
+Interactions outside that controlled bundle may therefore remain unexplored.
+The local sample count is deliberately small enough to make evolutionary search
+practical; the official 100-trial median is the final performance evidence.
+Correctness here means acceptance by the committed trusted verifier for every
+local private trial, while the official run repeats the stronger full workload
+contract.
 
 Future work should use the terminal receipt to update Shinka's search memory:
 promoted changes can become the next frontier; rejected but correctly verified
@@ -296,6 +337,7 @@ def _maybe_submit(
     target_path: str,
     baseline_score: float,
     candidate_score: float,
+    seed_submission: str | None = None,
 ) -> str:
     min_bips = float(os.getenv("SHINKA_SUBMIT_MIN_BIPS", "0"))
     improvement_bips = 10_000.0 * (candidate_score / baseline_score - 1.0)
@@ -310,7 +352,13 @@ def _maybe_submit(
     diff_check = _run(["git", "diff", "--check"], cwd=worktree)
     if diff_check.returncode != 0:
         return "blocked-diff-check"
-    add = _run(["git", "add", "--", target_path], cwd=worktree)
+    cached_diff_check = _run(["git", "diff", "--cached", "--check"], cwd=worktree)
+    if cached_diff_check.returncode != 0:
+        return "blocked-cached-diff-check"
+    changed_paths = _changed_paths(worktree, base_commit)
+    if not changed_paths:
+        return "blocked-no-changes"
+    add = _run(["git", "add", "--", *changed_paths], cwd=worktree)
     if add.returncode != 0:
         return "blocked-git-add"
     commit = _run(
@@ -333,7 +381,7 @@ def _maybe_submit(
         ["git", "rev-parse", "HEAD"], cwd=worktree
     ).stdout.strip()
     diff_stat = _run(
-        ["git", "diff", "--stat", base_commit, "HEAD", "--", target_path],
+        ["git", "diff", "--stat", base_commit, "HEAD"],
         cwd=worktree,
     ).stdout
     note_path = results_dir / "submission-note.md"
@@ -345,6 +393,8 @@ def _maybe_submit(
             baseline_score=baseline_score,
             candidate_score=candidate_score,
             diff_stat=diff_stat,
+            changed_paths=changed_paths,
+            seed_submission=seed_submission,
         ),
         encoding="utf-8",
     )
@@ -377,6 +427,11 @@ def evaluate(program_path: Path, results_dir: Path) -> None:
     target_path = os.environ["SHINKA_TARGET_PATH"]
     base_commit = os.environ["SHINKA_BASE_COMMIT"]
     benchmark_timeout = int(os.getenv("SHINKA_BENCHMARK_TIMEOUT", "1800"))
+    seed_patch_value = os.getenv("SHINKA_SEED_PATCH")
+    seed_target_value = os.getenv("SHINKA_SEED_TARGET_SOURCE")
+    seed_submission = os.getenv("SHINKA_SEED_SUBMISSION")
+    seed_patch = Path(seed_patch_value).resolve() if seed_patch_value else None
+    seed_target = Path(seed_target_value).resolve() if seed_target_value else None
 
     candidate = sanitize_candidate(program_path.read_text(encoding="utf-8"))
     base_show = _run(
@@ -386,6 +441,14 @@ def evaluate(program_path: Path, results_dir: Path) -> None:
         raise EvaluationError("target file is absent from the recorded frontier")
     base_source = sanitize_candidate(base_show.stdout)
     is_baseline = candidate == base_source
+    is_seed_reference = False
+    if seed_patch is not None:
+        if not seed_patch.is_file():
+            raise EvaluationError("configured official near-miss seed patch is missing")
+        if seed_target is None or not seed_target.is_file():
+            raise EvaluationError("configured official near-miss target source is missing")
+        seed_source = sanitize_candidate(seed_target.read_text(encoding="utf-8"))
+        is_seed_reference = candidate == seed_source
 
     baseline_path = _baseline_path(state_dir, base_commit, target_path)
     baseline_score = _load_baseline(baseline_path)
@@ -434,6 +497,8 @@ def evaluate(program_path: Path, results_dir: Path) -> None:
             candidate_target = worktree / "target"
             if shared_target.exists() and not candidate_target.exists():
                 candidate_target.symlink_to(shared_target, target_is_directory=True)
+            if not is_baseline and seed_patch is not None:
+                _apply_seed_patch(worktree, seed_patch)
             destination = worktree / target_path
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_text(candidate, encoding="utf-8")
@@ -463,14 +528,18 @@ def evaluate(program_path: Path, results_dir: Path) -> None:
             else:
                 if baseline_score is None:
                     raise EvaluationError("candidate ran before its baseline was captured")
-                submission_status = _maybe_submit(
-                    worktree=worktree,
-                    results_dir=results_dir,
-                    base_commit=base_commit,
-                    target_path=target_path,
-                    baseline_score=baseline_score,
-                    candidate_score=score,
-                )
+                if is_seed_reference:
+                    submission_status = "seed-reference-no-submit"
+                else:
+                    submission_status = _maybe_submit(
+                        worktree=worktree,
+                        results_dir=results_dir,
+                        base_commit=base_commit,
+                        target_path=target_path,
+                        baseline_score=baseline_score,
+                        candidate_score=score,
+                        seed_submission=seed_submission,
+                    )
             _write_result(
                 results_dir,
                 score=score,

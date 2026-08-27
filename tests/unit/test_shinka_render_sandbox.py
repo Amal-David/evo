@@ -28,3 +28,8 @@ def test_research_fails_closed_until_trusted_baseline_is_correct() -> None:
     assert 'echo v2 > "$state_dir/shinka-supervisor-version"' in research
     assert preflight < correctness_gate < launch
     assert "shinka-baseline-ready" in research
+    assert "shinka-near-miss-seed-ready" in research
+    assert "yukon reset \"$seed_submission\"" in research
+    assert "git worktree add --quiet --detach" in research
+    assert 'seed_lineage="${seed_submission:0:8}-${recorded_seed_sha:0:12}"' in research
+    assert "$target_id/$seed_lineage/landlock-seccomp-v1" in research

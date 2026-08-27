@@ -18,6 +18,7 @@ RESULTS_DIR = os.environ["SHINKA_RESULTS_DIR"]
 NUM_GENERATIONS = int(os.getenv("SHINKA_NUM_GENERATIONS", "10000"))
 RESEARCH_SEED_PATH = os.environ["SHINKA_RESEARCH_SEED_PATH"]
 RESEARCH_SEED = load_research_seed(RESEARCH_SEED_PATH)
+SEED_SUBMISSION = os.getenv("SHINKA_SEED_SUBMISSION", "none")
 
 TASK_PROMPT = f"""
 You are evolving one performance-critical Rust source file from the Yukon Flock
@@ -29,7 +30,11 @@ Rapids with 16 vCPU and Rust 1.97.0 using target-cpu=native.
 
 Treat the supplied program as the complete replacement for that one source
 file. Preserve imports, public APIs, architecture guards, and compatibility
-with all callers. Do not add Cargo dependencies or edit another file. Prefer
+with all callers. Do not add Cargo dependencies or edit another file. The
+evaluator layers every proposal on top of the correctness-clean official
+near-miss submission `{SEED_SUBMISSION}`: its other editable-path changes are
+fixed context, while this witness file begins at that submission's version.
+Improve the bundle rather than recreating or merely restating it. Prefer
 mechanistic improvements: remove repeated allocation or initialization, reduce
 copies and indirection, improve locality and batching, expose safe vectorization,
 specialize hot paths already fixed by the benchmark, and eliminate redundant

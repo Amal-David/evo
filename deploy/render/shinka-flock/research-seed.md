@@ -1,6 +1,6 @@
 # Flock x86 research seed for ShinkaEvolve
 
-Version: 2026-08-26.1
+Version: 2026-08-27.1
 
 This document is a compact, secret-free transfer of prior Codex, Evo/OpenCode,
 local-worktree, Render, and official Yukon evidence. It is research context, not
@@ -34,6 +34,28 @@ commit; historical frontier hashes and scores below are provenance only.
 - Only a terminal `promoted` Yukon receipt is a leaderboard win.
 
 ## Historical official receipts from Amal-David
+
+### ACTIVE PARENT: official near-miss on the current promoted base
+
+- Submission `25ec5a6e-7c56-4f1d-bd14-522681f952be`, candidate commit
+  `ae4c22df596fb7ca642766b362cb7b1e38a6fdb4`.
+- OFFICIAL: correctness-clean at `1485010.14633817` proofs/s, only
+  `440.22837038` proofs/s below promoted submission `e3fb0454` at
+  `1485450.37470855` on base commit
+  `207fc36d9eb365bff6ecc0f1959962a812df55cf`.
+- The patch changes four allowed files: `merkle.rs` replaces repeated checked
+  slices and fully initialized pointer arrays with typed-pointer traversal and
+  `MaybeUninit`; `blake3_witgen8.rs` moves the writer's `flush` branch into a
+  `const FLUSH: bool` generic; `prover.rs` guards an empty inner-claim slice;
+  and `gpu.rs` updates tests for the promoted C-mask layout.
+- The exact four-file diff is spent and must never be resubmitted unchanged.
+  Shinka starts from its witness-file version while replaying the other three
+  changes as fixed context. A probe is eligible only after Shinka materially
+  changes the witness file and the trusted evaluator accepts the resulting
+  descendant.
+- Treat the submission note's causal claims as hypotheses. The official result
+  proves correctness and near-frontier performance for the bundle, but does not
+  isolate how much each mechanism contributed.
 
 The promoted source was commit `51339b4724d25fb5040a311dc8fed87ad26fe5a9`
 when these receipts were collected. It validated submission `6acec43a` at about

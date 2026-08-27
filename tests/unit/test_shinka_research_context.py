@@ -29,6 +29,9 @@ def test_versioned_seed_is_bounded_and_labels_evidence() -> None:
     assert "fee27b8" in seed
     assert "016b180" in seed
     assert "c260871" in seed
+    assert "25ec5a6e-7c56-4f1d-bd14-522681f952be" in seed
+    assert "ae4c22df596fb7ca642766b362cb7b1e38a6fdb4" in seed
+    assert "must never be resubmitted unchanged" in seed
     assert "opencode/mimo-v2.5-free" in seed
     assert "ykn_" not in seed
 

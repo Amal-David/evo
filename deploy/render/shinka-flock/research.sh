@@ -17,6 +17,14 @@ readonly frontier_check_interval="${SHINKA_FRONTIER_CHECK_INTERVAL:-900}"
 readonly research_seed_source=/workspace/deploy/render/shinka-flock/research-seed.md
 readonly research_logbook_dir="$data_dir/shinka/logbook"
 readonly research_seed_path="$research_logbook_dir/research-seed.md"
+readonly seed_submission="${SHINKA_SEED_SUBMISSION:-25ec5a6e-7c56-4f1d-bd14-522681f952be}"
+readonly seed_source_commit="${SHINKA_SEED_SOURCE_COMMIT:-ae4c22df596fb7ca642766b362cb7b1e38a6fdb4}"
+readonly seed_base_commit="${SHINKA_SEED_BASE_COMMIT:-207fc36d9eb365bff6ecc0f1959962a812df55cf}"
+readonly seed_root="$data_dir/shinka/seeds/$seed_submission"
+readonly seed_patch="$seed_root/seed.patch"
+readonly seed_target_source="$seed_root/target.rs"
+readonly seed_changed_paths="$seed_root/changed-paths.txt"
+readonly seed_receipt="$seed_root/receipt.txt"
 
 mkdir -p \
   "$state_dir" \
@@ -109,6 +117,77 @@ printf '%s local=%s promoted=%s target=%s\n' \
   "$(date -u +%FT%TZ)" "$base_commit" "$base_commit" "$target_path" \
   > "$state_dir/shinka-frontier-current"
 
+if ! [[ "$seed_submission" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
+  log "Configured seed submission is not a full Yukon UUID"
+  false
+fi
+if ! [[ "$seed_source_commit" =~ ^[0-9a-f]{40}$ ]] || \
+   ! [[ "$seed_base_commit" =~ ^[0-9a-f]{40}$ ]]; then
+  log "Configured seed source or base commit is malformed"
+  false
+fi
+
+if [ ! -s "$seed_patch" ] || [ ! -s "$seed_target_source" ] || \
+   [ ! -s "$seed_changed_paths" ] || [ ! -s "$seed_receipt" ]; then
+  log "Recovering official near-miss $seed_submission in an isolated Yukon clone"
+  seed_stage=$(mktemp -d "$data_dir/shinka/seed-recovery.XXXXXX")
+  yukon clone "$benchmark_name" "$seed_stage/repo"
+  cd "$seed_stage/repo"
+  yukon reset "$seed_submission" 2>&1 | tee "$seed_stage/reset.log"
+  test "$(git rev-parse HEAD)" = "$seed_base_commit"
+  grep -Fq "from $seed_source_commit" "$seed_stage/reset.log"
+  git diff --cached --check
+  git diff --cached --name-only > "$seed_stage/changed-paths.txt"
+  test -s "$seed_stage/changed-paths.txt"
+  grep -Fxq "$target_path" "$seed_stage/changed-paths.txt"
+  while IFS= read -r changed_path; do
+    jq -e \
+      --arg changed "$changed_path" \
+      '.schemaVersion == 2 and any(.tracks[]; .name == "x86" and any(.editablePaths[]; . as $editable | $changed == $editable or ($changed | startswith($editable + "/"))))' \
+      benchmark.json >/dev/null
+  done < "$seed_stage/changed-paths.txt"
+  mkdir -p "$seed_root"
+  git diff --cached --binary > "$seed_root/seed.patch.tmp"
+  git show ":$target_path" > "$seed_root/target.rs.tmp"
+  cp "$seed_stage/changed-paths.txt" "$seed_root/changed-paths.txt.tmp"
+  patch_sha=$(sha256sum "$seed_root/seed.patch.tmp" | awk '{print $1}')
+  printf '%s submission=%s source=%s base=%s patch_sha256=%s\n' \
+    "$(date -u +%FT%TZ)" "$seed_submission" "$seed_source_commit" \
+    "$seed_base_commit" "$patch_sha" > "$seed_root/receipt.txt.tmp"
+  mv "$seed_root/seed.patch.tmp" "$seed_patch"
+  mv "$seed_root/target.rs.tmp" "$seed_target_source"
+  mv "$seed_root/changed-paths.txt.tmp" "$seed_changed_paths"
+  mv "$seed_root/receipt.txt.tmp" "$seed_receipt"
+  cd "$benchmark_dir"
+  rm -rf "$seed_stage"
+fi
+
+grep -Fq "submission=$seed_submission" "$seed_receipt"
+grep -Fq "source=$seed_source_commit" "$seed_receipt"
+grep -Fq "base=$seed_base_commit" "$seed_receipt"
+recorded_seed_sha=$(sed -n 's/.* patch_sha256=\([0-9a-f]\{64\}\).*/\1/p' "$seed_receipt")
+test -n "$recorded_seed_sha"
+test "$(sha256sum "$seed_patch" | awk '{print $1}')" = "$recorded_seed_sha"
+test "$(wc -c < "$seed_target_source")" -le "$max_target_bytes"
+
+log "Checking that the near-miss patch applies cleanly to the promoted frontier"
+seed_preflight_parent=$(mktemp -d "$data_dir/shinka/seed-preflight.XXXXXX")
+seed_preflight="$seed_preflight_parent/worktree"
+git worktree add --quiet --detach "$seed_preflight" "$base_commit"
+if ! git -C "$seed_preflight" apply --index --3way "$seed_patch"; then
+  git worktree remove --force "$seed_preflight" || true
+  rmdir "$seed_preflight_parent" || true
+  log "Near-miss seed no longer applies cleanly to the promoted frontier"
+  false
+fi
+git -C "$seed_preflight" diff --cached --check
+git worktree remove --force "$seed_preflight"
+rmdir "$seed_preflight_parent"
+printf '%s submission=%s source=%s source_base=%s promoted=%s patch_sha256=%s\n' \
+  "$(date -u +%FT%TZ)" "$seed_submission" "$seed_source_commit" \
+  "$seed_base_commit" "$base_commit" "$recorded_seed_sha" \
+  > "$state_dir/shinka-near-miss-seed-ready"
+
 log "Running Yukon setup for the promoted Flock frontier"
 FLOCK_REQUIRE_SANDBOX=1 yukon setup --track x86 \
   2>&1 | tee "$state_dir/shinka-setup.log"
@@ -117,8 +196,9 @@ yukon submissions "$benchmark_name" --all \
 date -u +%FT%TZ > "$state_dir/shinka-submissions-refreshed-at"
 
 target_id=$(printf '%s' "$target_path" | sha256sum | awk '{print substr($1,1,16)}')
+seed_lineage="${seed_submission:0:8}-${recorded_seed_sha:0:12}"
 task_dir="$data_dir/shinka/tasks/$target_id"
-results_dir="$data_dir/shinka/results/$base_commit/$target_id/landlock-seccomp-v1"
+results_dir="$data_dir/shinka/results/$base_commit/$target_id/$seed_lineage/landlock-seccomp-v1"
 mkdir -p "$task_dir" "$results_dir"
 cp /workspace/deploy/render/shinka-flock/evaluate.py "$task_dir/evaluate.py"
 cp /workspace/deploy/render/shinka-flock/run_evo.py "$task_dir/run_evo.py"
@@ -126,11 +206,17 @@ cp /workspace/deploy/render/shinka-flock/research_context.py \
   "$task_dir/research_context.py"
 {
   echo '// EVOLVE-BLOCK-START'
-  git show "$base_commit:$target_path"
+  cat "$seed_target_source"
   echo '// EVOLVE-BLOCK-END'
 } > "$task_dir/initial.rs"
-printf '%s base=%s target=%s model=%s variant=%s\n' \
+{
+  echo '// EVOLVE-BLOCK-START'
+  git show "$base_commit:$target_path"
+  echo '// EVOLVE-BLOCK-END'
+} > "$task_dir/baseline.rs"
+printf '%s base=%s target=%s model=%s variant=%s seed_submission=%s seed_source=%s seed_lineage=%s\n' \
   "$(date -u +%FT%TZ)" "$base_commit" "$target_path" "$model" "$variant" \
+  "$seed_submission" "$seed_source_commit" "$seed_lineage" \
   > "$state_dir/shinka-campaign"
 
 log "Capturing a fail-closed trusted baseline before evolutionary search"
@@ -143,8 +229,11 @@ setsid env \
   SHINKA_RESULTS_DIR="$results_dir" \
   SHINKA_STATE_DIR="$state_dir" \
   SHINKA_RESEARCH_SEED_PATH="$research_seed_path" \
+  SHINKA_SEED_PATCH="$seed_patch" \
+  SHINKA_SEED_TARGET_SOURCE="$seed_target_source" \
+  SHINKA_SEED_SUBMISSION="$seed_submission" \
   python3 "$task_dir/evaluate.py" \
-    --program_path "$task_dir/initial.rs" \
+    --program_path "$task_dir/baseline.rs" \
     --results_dir "$baseline_receipt_dir" &
 baseline_pid=$!
 while kill -0 "$baseline_pid" 2>/dev/null; do
@@ -188,6 +277,9 @@ while true; do
     SHINKA_RESULTS_DIR="$results_dir" \
     SHINKA_STATE_DIR="$state_dir" \
     SHINKA_RESEARCH_SEED_PATH="$research_seed_path" \
+    SHINKA_SEED_PATCH="$seed_patch" \
+    SHINKA_SEED_TARGET_SOURCE="$seed_target_source" \
+    SHINKA_SEED_SUBMISSION="$seed_submission" \
     python3 "$task_dir/run_evo.py" &
   child_pid=$!
   echo "$child_pid" > "$state_dir/shinka-runner.pid"

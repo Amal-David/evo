@@ -51,6 +51,8 @@ def test_submission_note_meets_yukon_size_and_has_exact_attribution() -> None:
         baseline_score=100.0,
         candidate_score=100.01,
         diff_stat="1 file changed, 1 insertion(+)",
+        changed_paths=["crates/flock-prover/src/recycle_alloc.rs"],
+        seed_submission="25ec5a6e-7c56-4f1d-bd14-522681f952be",
     )
 
     assert 5120 <= len(note.encode("utf-8")) <= 102400
@@ -59,6 +61,7 @@ def test_submission_note_meets_yukon_size_and_has_exact_attribution() -> None:
     assert "variant `high`" in note
     assert "Landlock and seccomp" in note
     assert "bubblewrap" not in note
+    assert "25ec5a6e-7c56-4f1d-bd14-522681f952be" in note
 
 
 def test_evaluator_captures_baseline_then_scores_isolated_candidate(
@@ -144,6 +147,113 @@ def test_evaluator_captures_baseline_then_scores_isolated_candidate(
         candidate_metrics["public"]["submission_status"]
         == "blocked-missing-git-identity"
     )
+    assert subprocess.run(
+        ["git", "status", "--short"],
+        cwd=repository,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout == ""
+
+
+def test_evaluator_layers_seed_patch_but_does_not_resubmit_seed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repository = tmp_path / "benchmark"
+    target_path = "crates/flock-prover/src/r1cs_hashes/blake3_witgen8.rs"
+    support_path = "crates/flock-core/src/merkle.rs"
+    target = repository / target_path
+    support = repository / support_path
+    target.parent.mkdir(parents=True)
+    support.parent.mkdir(parents=True)
+    target.write_text("pub fn witness() -> u64 { 100 }\n", encoding="utf-8")
+    support.write_text("pub fn merkle() -> u64 { 100 }\n", encoding="utf-8")
+    benchmark = repository / "benchmark.sh"
+    benchmark.write_text(
+        "#!/bin/sh\n"
+        "set -eu\n"
+        f"if grep -q seed_witness {target_path} && "
+        f"grep -q seed_merkle {support_path}; then score=102; else score=100; fi\n"
+        "printf '{\"score\": %s}\\n' \"$score\" > score.json\n",
+        encoding="utf-8",
+    )
+    benchmark.chmod(0o755)
+    subprocess.run(["git", "init"], cwd=repository, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "config", "user.name", "Test"], cwd=repository, check=True
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=repository,
+        check=True,
+    )
+    subprocess.run(["git", "add", "."], cwd=repository, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", "baseline"],
+        cwd=repository,
+        check=True,
+        capture_output=True,
+    )
+    base_commit = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=repository,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+    target.write_text(
+        "pub fn witness() -> u64 { 102 } // seed_witness\n", encoding="utf-8"
+    )
+    support.write_text(
+        "pub fn merkle() -> u64 { 102 } // seed_merkle\n", encoding="utf-8"
+    )
+    seed_patch = tmp_path / "seed.patch"
+    seed_patch.write_text(
+        subprocess.run(
+            ["git", "diff", "--binary"],
+            cwd=repository,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout,
+        encoding="utf-8",
+    )
+    seed_target = tmp_path / "seed-target.rs"
+    seed_target.write_text(target.read_text(encoding="utf-8"), encoding="utf-8")
+    subprocess.run(
+        ["git", "restore", "--", target_path, support_path],
+        cwd=repository,
+        check=True,
+    )
+
+    monkeypatch.setenv("SHINKA_BENCHMARK_DIR", str(repository))
+    monkeypatch.setenv("SHINKA_BASE_COMMIT", base_commit)
+    monkeypatch.setenv("SHINKA_TARGET_PATH", target_path)
+    monkeypatch.setenv("SHINKA_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("SHINKA_WORKTREE_DIR", str(tmp_path / "worktrees"))
+    monkeypatch.setenv("SHINKA_EVAL_LOCK", str(tmp_path / "state" / "eval.lock"))
+    monkeypatch.setenv("SHINKA_SEED_PATCH", str(seed_patch))
+    monkeypatch.setenv("SHINKA_SEED_TARGET_SOURCE", str(seed_target))
+    monkeypatch.setenv(
+        "SHINKA_SEED_SUBMISSION", "25ec5a6e-7c56-4f1d-bd14-522681f952be"
+    )
+
+    baseline_program = tmp_path / "baseline.rs"
+    baseline_program.write_text(target.read_text(encoding="utf-8"), encoding="utf-8")
+    baseline_results = tmp_path / "baseline-results"
+    EVALUATOR.main(str(baseline_program), str(baseline_results))
+    assert json.loads(
+        (baseline_results / "metrics.json").read_text(encoding="utf-8")
+    )["combined_score"] == 100.0
+
+    seed_results = tmp_path / "seed-results"
+    EVALUATOR.main(str(seed_target), str(seed_results))
+    seed_metrics = json.loads(
+        (seed_results / "metrics.json").read_text(encoding="utf-8")
+    )
+    assert seed_metrics["combined_score"] == 102.0
+    assert seed_metrics["public"]["submission_status"] == "seed-reference-no-submit"
     assert subprocess.run(
         ["git", "status", "--short"],
         cwd=repository,
