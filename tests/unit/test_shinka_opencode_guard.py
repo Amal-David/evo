@@ -6,6 +6,16 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 WRAPPER = ROOT / "deploy" / "render" / "shinka-flock" / "opencode-guard.sh"
+ENTRYPOINT = ROOT / "deploy" / "render" / "shinka-flock" / "entrypoint.sh"
+
+
+def test_entrypoint_isolates_free_model_from_stale_zen_credentials() -> None:
+    entrypoint = ENTRYPOINT.read_text(encoding="utf-8")
+
+    assert 'readonly runtime_data_home="$runtime_home/.local/share-shinka-free"' in entrypoint
+    assert 'XDG_DATA_HOME="$runtime_data_home"' in entrypoint
+    assert 'OPENCODE_DATA_HOME="$runtime_data_home/opencode"' in entrypoint
+    assert 'XDG_DATA_HOME="$runtime_home/.local/share"' not in entrypoint
 
 
 def test_wrapper_preserves_headless_high_for_mimo(tmp_path: Path) -> None:

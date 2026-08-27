@@ -2,6 +2,9 @@
 set -Eeuo pipefail
 
 readonly runtime_home=/data/home
+# Zen free models accept anonymous requests. Keep Shinka isolated from any
+# stale paid-provider credential left on the persistent disk.
+readonly runtime_data_home="$runtime_home/.local/share-shinka-free"
 readonly state_dir=/data/state
 readonly log_dir=/data/logs
 readonly workspace_dir=/data/workspace
@@ -9,6 +12,7 @@ readonly shinka_dir=/data/shinka
 
 mkdir -p \
   "$runtime_home" \
+  "$runtime_data_home" \
   "$state_dir" \
   "$log_dir" \
   "$workspace_dir" \
@@ -34,8 +38,8 @@ fi
 exec runuser -u runner -- env \
   HOME="$runtime_home" \
   XDG_CONFIG_HOME="$runtime_home/.config" \
-  XDG_DATA_HOME="$runtime_home/.local/share" \
-  OPENCODE_DATA_HOME="$runtime_home/.local/share/opencode" \
+  XDG_DATA_HOME="$runtime_data_home" \
+  OPENCODE_DATA_HOME="$runtime_data_home/opencode" \
   PATH="/opt/shinka/bin:/opt/shinka/venv/bin:$runtime_home/.local/bin:/usr/local/bin:/usr/bin:/bin" \
   YUKON_API_TOKEN="$YUKON_API_TOKEN" \
   SHINKA_PRICING_MODE=offline \
