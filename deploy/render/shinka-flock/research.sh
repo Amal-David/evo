@@ -135,7 +135,10 @@ if [ ! -s "$seed_patch" ] || [ ! -s "$seed_target_source" ] || \
   cd "$seed_stage/repo"
   yukon reset "$seed_submission" 2>&1 | tee "$seed_stage/reset.log"
   test "$(git rev-parse HEAD)" = "$seed_base_commit"
-  grep -Fq "from $seed_source_commit" "$seed_stage/reset.log"
+  # Yukon decorates field labels with ANSI color codes even when piped. Match
+  # the full source commit itself; the reset receipt contains it only in the
+  # `from` field, while HEAD independently verifies the submission base.
+  grep -Fq "$seed_source_commit" "$seed_stage/reset.log"
   git diff --cached --check
   git diff --cached --name-only > "$seed_stage/changed-paths.txt"
   test -s "$seed_stage/changed-paths.txt"
