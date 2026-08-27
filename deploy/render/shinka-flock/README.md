@@ -51,11 +51,12 @@ or manually copying environment secrets. The live Evo service remains on
 
 Shinka uses a weighted zero-cost Headless/OpenCode pool: 90% Muse Spark 1.2
 Contributor Free and 10% Hy3 Free, both with native `high` reasoning. These two
-anonymous models were smoke-tested independently before rollout. A five-minute
-Headless timeout prevents a throttled provider request from monopolizing a
-proposal slot indefinitely, and Shinka performs only one provider attempt per
-selected arm so a failed call returns to pool selection instead of retrying the
-same model three times. The image places a dedicated OpenCode wrapper first on
+anonymous models were smoke-tested independently before rollout. A twenty-minute
+Headless timeout gives research-sized prompts time to complete while bounding a
+stuck provider request. Shinka performs one provider call, one patch attempt,
+and one novelty attempt per generation, so a failed call returns to pool
+selection instead of repeating the same selected model. The image places a
+dedicated OpenCode wrapper first on
 `PATH`; it admits only the reviewed pool and verifies that the native `high`
 variant reaches OpenCode unchanged. The last model/variant receipt is stored at
 `/data/state/shinka-opencode-last-invocation` without prompts or credentials.

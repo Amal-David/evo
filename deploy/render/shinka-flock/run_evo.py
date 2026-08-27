@@ -92,8 +92,8 @@ def main() -> None:
         patch_types=["diff", "full"],
         patch_type_probs=[0.8, 0.2],
         num_generations=NUM_GENERATIONS,
-        max_patch_resamples=2,
-        max_patch_attempts=2,
+        max_patch_resamples=1,
+        max_patch_attempts=1,
         job_type="local",
         language="rust",
         llm_models=[
@@ -107,7 +107,7 @@ def main() -> None:
         init_program_path=str(TASK_DIR / "initial.rs"),
         results_dir=RESULTS_DIR,
         use_text_feedback=True,
-        max_novelty_attempts=2,
+        max_novelty_attempts=1,
     )
     runner = ShinkaEvolveRunner(
         evo_config=evo_config,
