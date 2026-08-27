@@ -26,6 +26,8 @@ RUN useradd --create-home --shell /bin/bash runner
 
 WORKDIR /workspace
 COPY . /workspace
+RUN python3 deploy/render/shinka-flock/patch_headless.py \
+        /usr/local/lib/node_modules/@roberttlange/headless/dist/agents.js
 COPY deploy/render/shinka-flock/entrypoint.sh /usr/local/bin/shinka-flock-entrypoint
 COPY deploy/render/shinka-flock/research.sh /usr/local/bin/shinka-flock-research
 COPY deploy/render/shinka-flock/submit-probe.sh /usr/local/bin/shinka-flock-submit-probe
