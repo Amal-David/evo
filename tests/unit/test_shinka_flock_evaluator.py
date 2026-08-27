@@ -43,6 +43,34 @@ def test_score_from_payload_prefers_named_score() -> None:
     assert EVALUATOR.score_from_payload({"result": {"combined_score": 8}}) == 8.0
 
 
+def test_default_submission_threshold_allows_noise_masked_candidate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("SHINKA_SUBMIT_MIN_BIPS", raising=False)
+    monkeypatch.delenv("SHINKA_GIT_USER_NAME", raising=False)
+    monkeypatch.delenv("SHINKA_GIT_USER_EMAIL", raising=False)
+
+    accepted = EVALUATOR._maybe_submit(
+        worktree=tmp_path,
+        results_dir=tmp_path,
+        base_commit="a" * 40,
+        target_path="crates/flock-prover/src/recycle_alloc.rs",
+        baseline_score=100.0,
+        candidate_score=99.5,
+    )
+    rejected = EVALUATOR._maybe_submit(
+        worktree=tmp_path,
+        results_dir=tmp_path,
+        base_commit="a" * 40,
+        target_path="crates/flock-prover/src/recycle_alloc.rs",
+        baseline_score=100.0,
+        candidate_score=98.0,
+    )
+
+    assert accepted == "blocked-missing-git-identity"
+    assert rejected.startswith("below-threshold:")
+
+
 def test_submission_note_meets_yukon_size_and_has_exact_attribution() -> None:
     note = EVALUATOR._build_submission_note(
         base_commit="a" * 40,

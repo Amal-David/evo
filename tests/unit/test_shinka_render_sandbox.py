@@ -52,4 +52,6 @@ def test_research_reads_the_installed_skill_and_recovers_blocked_candidates() ->
     assert "Amal-David@users.noreply.github.com" in research
     assert "blocked-missing-git-identity" in research
     assert "identity-recovery" in research
+    assert 'submit_min_bips="${SHINKA_SUBMIT_MIN_BIPS:--100}"' in research
+    assert "shinka-submission-policy" in research
     assert baseline_ready < identity_recovery < launch

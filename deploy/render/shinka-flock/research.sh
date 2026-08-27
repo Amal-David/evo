@@ -28,6 +28,7 @@ readonly seed_receipt="$seed_root/receipt.txt"
 readonly yukon_skill_path="$HOME/.config/opencode/skills/yukon-cli/SKILL.md"
 readonly candidate_git_user_name="${SHINKA_GIT_USER_NAME:-Amal-David}"
 readonly candidate_git_user_email="${SHINKA_GIT_USER_EMAIL:-Amal-David@users.noreply.github.com}"
+readonly submit_min_bips="${SHINKA_SUBMIT_MIN_BIPS:--100}"
 
 mkdir -p \
   "$state_dir" \
@@ -271,6 +272,9 @@ printf '%s base=%s score=%s sandbox=landlock-seccomp-v1\n' \
   "$(date -u +%FT%TZ)" "$base_commit" "$baseline_score" \
   > "$state_dir/shinka-baseline-ready"
 log "Trusted baseline ready at score $baseline_score"
+printf '%s version=v2 evaluator=official-yukon min_bips=%s max_daily=15\n' \
+  "$(date -u +%FT%TZ)" "$submit_min_bips" \
+  > "$state_dir/shinka-submission-policy"
 
 # Releases before the submission identity default could benchmark a correct,
 # positive candidate but stop at `blocked-missing-git-identity`. Re-evaluate
@@ -284,7 +288,7 @@ if [ -s "$recovery_program" ] && [ -s "$recovery_metrics" ] && \
    jq -e '.public.submission_status == "blocked-missing-git-identity"' \
      "$recovery_metrics" >/dev/null; then
   recovery_hash=$(sha256sum "$recovery_program" | awk '{print $1}')
-  recovery_receipt="$state_dir/shinka-identity-recovery-$recovery_hash"
+  recovery_receipt="$state_dir/shinka-identity-recovery-v2-$recovery_hash"
   if [ ! -s "$recovery_receipt" ]; then
     recovery_results="$results_dir/identity-recovery/$recovery_hash"
     mkdir -p "$recovery_results"
@@ -301,6 +305,7 @@ if [ -s "$recovery_program" ] && [ -s "$recovery_metrics" ] && \
       SHINKA_SEED_SUBMISSION="$seed_submission" \
       SHINKA_GIT_USER_NAME="$candidate_git_user_name" \
       SHINKA_GIT_USER_EMAIL="$candidate_git_user_email" \
+      SHINKA_SUBMIT_MIN_BIPS="$submit_min_bips" \
       python3 "$task_dir/evaluate.py" \
         --program_path "$recovery_program" \
         --results_dir "$recovery_results" &
@@ -351,6 +356,7 @@ while true; do
     SHINKA_YUKON_SKILL_PATH="$yukon_skill_path" \
     SHINKA_GIT_USER_NAME="$candidate_git_user_name" \
     SHINKA_GIT_USER_EMAIL="$candidate_git_user_email" \
+    SHINKA_SUBMIT_MIN_BIPS="$submit_min_bips" \
     python3 "$task_dir/run_evo.py" &
   child_pid=$!
   echo "$child_pid" > "$state_dir/shinka-runner.pid"
