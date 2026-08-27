@@ -219,10 +219,12 @@ def _build_submission_note(
 
 ## Attribution and objective
 
-This candidate was proposed by **OpenCode Zen MiMo-V2.5 Free** using the exact
-OpenCode model `opencode/mimo-v2.5-free` with native variant `high`. The search
-harness was SakanaAI ShinkaEvolve, routed through Headless CLI and a dedicated
-OpenCode adapter. The objective is to improve the Yukon
+This candidate was proposed by **OpenCode Zen Free Pool (Muse Spark 1.2 / Hy3)**.
+Each generation selected exactly one of the zero-cost OpenCode models
+`opencode/muse-spark-1.2-contributor-free` or `opencode/hy3-free`, with native
+variant `high`; the selected arm is retained in the private Shinka run artifacts.
+The search harness was SakanaAI ShinkaEvolve, routed through Headless CLI and a
+dedicated OpenCode adapter. The objective is to improve the Yukon
 `eigenlabs/flock-challenge-multi/x86` score: verified BLAKE3 compression-proof
 throughput on the official 16-vCPU Intel Sapphire Rapids runner.
 

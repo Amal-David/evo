@@ -44,7 +44,7 @@ exec runuser -u runner -- env \
   YUKON_API_TOKEN="$YUKON_API_TOKEN" \
   SHINKA_PRICING_MODE=offline \
   SHINKA_HEADLESS_COMMAND=headless \
-  SHINKA_HEADLESS_TIMEOUT="${SHINKA_HEADLESS_TIMEOUT:-3600}" \
+  SHINKA_HEADLESS_TIMEOUT="${SHINKA_HEADLESS_TIMEOUT:-300}" \
   RAYON_NUM_THREADS="${RAYON_NUM_THREADS:-8}" \
   NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=4096}" \
   /usr/local/bin/shinka-flock-research

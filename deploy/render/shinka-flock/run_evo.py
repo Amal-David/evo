@@ -97,9 +97,11 @@ def main() -> None:
         job_type="local",
         language="rust",
         llm_models=[
-            "headless/opencode@opencode/mimo-v2.5-free?effort=high",
+            "headless/opencode@opencode/muse-spark-1.2-contributor-free?effort=high",
+            "headless/opencode@opencode/hy3-free?effort=high",
         ],
         llm_dynamic_selection="fixed",
+        llm_dynamic_selection_kwargs={"prior_probs": [0.65, 0.35]},
         meta_rec_interval=None,
         embedding_model=None,
         init_program_path=str(TASK_DIR / "initial.rs"),

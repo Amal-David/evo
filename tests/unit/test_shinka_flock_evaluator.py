@@ -84,8 +84,9 @@ def test_submission_note_meets_yukon_size_and_has_exact_attribution() -> None:
     )
 
     assert 5120 <= len(note.encode("utf-8")) <= 102400
-    assert "OpenCode Zen MiMo-V2.5 Free" in note
-    assert "opencode/mimo-v2.5-free" in note
+    assert "OpenCode Zen Free Pool (Muse Spark 1.2 / Hy3)" in note
+    assert "opencode/muse-spark-1.2-contributor-free" in note
+    assert "opencode/hy3-free" in note
     assert "variant `high`" in note
     assert "Landlock and seccomp" in note
     assert "bubblewrap" not in note

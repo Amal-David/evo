@@ -178,8 +178,10 @@ These are leads, not truths. Prefer one isolated mechanism per lineage.
 6. Local positive, neutral, or modestly negative results may justify an official
    probe for an SPR-specific mechanism, but correctness, ancestry, scope,
    deduplication, attribution, and secret-free-note checks remain mandatory.
-7. Use the exact model attribution `OpenCode Zen MiMo-V2.5 Free`, model
-   `opencode/mimo-v2.5-free`, variant `high`.
+7. Use the exact pool attribution `OpenCode Zen Free Pool (Muse Spark 1.2 / Hy3)`.
+   The reviewed zero-cost models are `opencode/muse-spark-1.2-contributor-free`
+   and `opencode/hy3-free`, both with variant `high`; retain the selected arm in
+   the private Shinka artifacts.
 
 ## Why the default lane changed
 

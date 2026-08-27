@@ -8,7 +8,7 @@ readonly workspace_parent="$data_dir/workspace"
 readonly benchmark_dir="$workspace_parent/flock-challenge-multi"
 readonly benchmark_name=eigenlabs/flock-challenge-multi/x86
 readonly frontier_branch=main
-readonly model=opencode/mimo-v2.5-free
+readonly model_pool=opencode/muse-spark-1.2-contributor-free,opencode/hy3-free
 readonly variant=high
 readonly target_path="${SHINKA_TARGET_PATH:-crates/flock-prover/src/r1cs_hashes/blake3_witgen8.rs}"
 readonly max_target_bytes="${SHINKA_MAX_TARGET_BYTES:-100000}"
@@ -227,8 +227,8 @@ cp /workspace/deploy/render/shinka-flock/research_context.py \
   git show "$base_commit:$target_path"
   echo '// EVOLVE-BLOCK-END'
 } > "$task_dir/baseline.rs"
-printf '%s base=%s target=%s model=%s variant=%s seed_submission=%s seed_source=%s seed_lineage=%s\n' \
-  "$(date -u +%FT%TZ)" "$base_commit" "$target_path" "$model" "$variant" \
+printf '%s base=%s target=%s model_pool=%s variant=%s seed_submission=%s seed_source=%s seed_lineage=%s\n' \
+  "$(date -u +%FT%TZ)" "$base_commit" "$target_path" "$model_pool" "$variant" \
   "$seed_submission" "$seed_source_commit" "$seed_lineage" \
   > "$state_dir/shinka-campaign"
 
@@ -342,7 +342,7 @@ fi
 while true; do
   restart_count=$((restart_count + 1))
   printf '%s\n' "$restart_count" > "$state_dir/shinka-restarts"
-  log "Launching ShinkaEvolve attempt $restart_count with $model variant $variant"
+  log "Launching ShinkaEvolve attempt $restart_count with free-model pool $model_pool variant $variant"
 
   setsid env \
     SHINKA_BENCHMARK_DIR="$benchmark_dir" \
@@ -367,9 +367,9 @@ while true; do
 
   while kill -0 "$child_pid" 2>/dev/null; do
     memory_current=$(cat /sys/fs/cgroup/memory.current 2>/dev/null || echo 0)
-    printf '%s memory_current=%s attempt=%s child=%s model=%s variant=%s\n' \
+    printf '%s memory_current=%s attempt=%s child=%s model_pool=%s variant=%s\n' \
       "$(date -u +%FT%TZ)" "$memory_current" "$restart_count" \
-      "$child_pid" "$model" "$variant" \
+      "$child_pid" "$model_pool" "$variant" \
       > "$state_dir/shinka-supervisor-heartbeat"
     if [ "$memory_current" -ge "$memory_soft_limit" ]; then
       pressure_stopped=1

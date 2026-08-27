@@ -43,18 +43,20 @@ if [ "$expect_model" -eq 1 ] || [ "$expect_variant" -eq 1 ]; then
   exit 2
 fi
 
-# Keep the Headless-to-OpenCode handoff fail closed: the configured free model
-# and its supported reasoning variant must reach the native OpenCode process
-# unchanged.
+# Keep the Headless-to-OpenCode handoff fail closed: only the reviewed anonymous
+# free-model pool and its supported reasoning variant may reach OpenCode.
 if [ "${1:-}" = run ]; then
   if [ -z "$variant" ]; then
     echo "OpenCode wrapper requires an explicit --variant for Shinka runs" >&2
     exit 2
   fi
-  if [ "$model" != opencode/mimo-v2.5-free ]; then
-    echo "OpenCode wrapper rejected an unexpected model" >&2
-    exit 2
-  fi
+  case "$model" in
+    opencode/muse-spark-1.2-contributor-free|opencode/hy3-free) ;;
+    *)
+      echo "OpenCode wrapper rejected an unexpected model" >&2
+      exit 2
+      ;;
+  esac
   if [ "$variant" != high ]; then
     echo "OpenCode wrapper rejected an unexpected variant" >&2
     exit 2
