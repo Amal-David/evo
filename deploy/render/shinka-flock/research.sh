@@ -28,7 +28,7 @@ readonly seed_receipt="$seed_root/receipt.txt"
 readonly yukon_skill_path="$HOME/.config/opencode/skills/yukon-cli/SKILL.md"
 readonly candidate_git_user_name="${SHINKA_GIT_USER_NAME:-Amal-David}"
 readonly candidate_git_user_email="${SHINKA_GIT_USER_EMAIL:-Amal-David@users.noreply.github.com}"
-readonly submit_min_bips="${SHINKA_SUBMIT_MIN_BIPS:--100}"
+readonly submit_min_bips="${SHINKA_SUBMIT_MIN_BIPS:--250}"
 
 mkdir -p \
   "$state_dir" \
@@ -288,7 +288,7 @@ if [ -s "$recovery_program" ] && [ -s "$recovery_metrics" ] && \
    jq -e '.public.submission_status == "blocked-missing-git-identity"' \
      "$recovery_metrics" >/dev/null; then
   recovery_hash=$(sha256sum "$recovery_program" | awk '{print $1}')
-  recovery_receipt="$state_dir/shinka-identity-recovery-v3-$recovery_hash"
+  recovery_receipt="$state_dir/shinka-identity-recovery-v4-$recovery_hash"
   if [ ! -s "$recovery_receipt" ]; then
     recovery_results="$results_dir/identity-recovery/$recovery_hash"
     mkdir -p "$recovery_results"

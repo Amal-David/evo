@@ -64,7 +64,7 @@ def test_default_submission_threshold_allows_noise_masked_candidate(
         base_commit="a" * 40,
         target_path="crates/flock-prover/src/recycle_alloc.rs",
         baseline_score=100.0,
-        candidate_score=98.0,
+        candidate_score=97.0,
     )
 
     assert accepted == "blocked-missing-git-identity"

@@ -69,7 +69,7 @@ correct untouched-baseline receipt through that sandbox and must verify the
 official near-miss patch against the promoted frontier. A failed gate holds the
 campaign for inspection instead of letting zero-score generations consume model
 calls. A materially changed descendant with a positive point estimate, or a
-mechanistically distinct candidate within 1% of baseline whose local result may
+mechanistically distinct candidate within 2.5% of baseline whose local result may
 be noise- or hardware-masked, may trigger one official Yukon probe after
 current-frontier, editable-path, correctness, deduplication, attribution,
 note-size, note-secret, daily-quota, and cooldown checks. The monitor must

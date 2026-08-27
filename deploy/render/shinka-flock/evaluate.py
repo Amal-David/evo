@@ -347,7 +347,7 @@ def _maybe_submit(
     candidate_score: float,
     seed_submission: str | None = None,
 ) -> str:
-    min_bips = float(os.getenv("SHINKA_SUBMIT_MIN_BIPS", "-100"))
+    min_bips = float(os.getenv("SHINKA_SUBMIT_MIN_BIPS", "-250"))
     improvement_bips = 10_000.0 * (candidate_score / baseline_score - 1.0)
     if improvement_bips <= min_bips:
         return f"below-threshold:{improvement_bips:.4f}-bips"
